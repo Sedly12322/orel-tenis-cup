@@ -1,10 +1,6 @@
 import { vypocitejTabulku, zkraceneJmeno } from '../utils/gameLogic'
 
-// Globální detekce diváka
-const isDivak = window.location.search.includes('divak=1')
-
 export const ZapasCard = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
-  // Pomocná funkce pro vypsání setů (např. "6:4, 3:6, 10:8")
   const getSetyText = () => {
     if (!zapas.match_state?.completed_sets || zapas.match_state.completed_sets.length === 0) return "";
     return zapas.match_state.completed_sets
@@ -38,7 +34,6 @@ export const ZapasCard = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
           </span>
         </div>
 
-        {/* Napsání přesných výsledků setů u dohraných zápasů */}
         {zapas.status === 'finished' && getSetyText() && (
           <div style={{ marginTop: '8px', textAlign: 'center', color: isDivak ? '#aaa' : '#666', fontSize: '14px', fontStyle: 'italic' }}>
             Průběh: {getSetyText()}
@@ -48,99 +43,56 @@ export const ZapasCard = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
     </div>
   )
 }
-export const BracketMatchCard = ({ zapas, otevritZapas }) => {
+
+// --- ČISTÁ AUTOMATICKÁ KARTIČKA PRO PAVOUKA ---
+export const BracketMatchCard = ({ zapas, otevritZapas, isDivak }) => {
+  const isUnresolved1 = zapas.player1_name?.includes('Vítěz');
+  const isUnresolved2 = zapas.player2_name?.includes('Vítěz');
+  const isUnresolved = isUnresolved1 || isUnresolved2;
+
   let stBg = isDivak ? '#333' : '#fff';
   let stCol = isDivak ? '#fff' : '#000';
-  if (zapas.status === 'live') { stBg = '#dc3545'; stCol = '#fff'; }
-  else if (zapas.status === 'finished') { stBg = isDivak ? '#222' : '#e9ecef'; stCol = '#888'; }
+  let borderCol = '#aaa';
 
-  return (
-    <div onClick={() => otevritZapas(zapas.id)} style={{ background: stBg, border: '1px solid #aaa', padding: '10px', borderRadius: '8px', marginBottom: '15px', cursor: 'pointer', width: '200px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-      <div style={{ fontWeight: 'bold', borderBottom: '1px solid #555', paddingBottom: '5px', marginBottom: '5px', color: stCol }}>
-        {zapas.player1_name || 'Hráč 1'}
-        {zapas.status === 'finished' && <span style={{float: 'right'}}>{zapas.match_state?.sets_won?.player1}</span>}
-      </div>
-      <div style={{ fontWeight: 'bold', color: stCol }}>
-        {zapas.player2_name || 'Hráč 2'}
-        {zapas.status === 'finished' && <span style={{float: 'right'}}>{zapas.match_state?.sets_won?.player2}</span>}
-      </div>
-      {zapas.status === 'live' && <div style={{ color: '#fff', fontSize: '12px', marginTop: '5px', fontWeight: 'bold', textAlign: 'center' }}>🔴 LIVE</div>}
-    </div>
-  )
-}
-
-export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev }) => {
-  const { staty } = vypocitejTabulku(matches, hraciList);
-  
-  const getScoreText = (radkovyHrac, sloupcovyHrac) => {
-    const match = matches.find(m => m.status === 'finished' && ((m.player1_name === radkovyHrac && m.player2_name === sloupcovyHrac) || (m.player1_name === sloupcovyHrac && m.player2_name === radkovyHrac)));
-    if (!match || !match.match_state || !match.match_state.completed_sets) return "";
-    return match.match_state.completed_sets.map(set => {
-      if (match.player1_name === radkovyHrac) return `${set.player1_games}-${set.player2_games}`;
-      else return `${set.player2_games}-${set.player1_games}`;
-    }).join(', ');
+  // Pokud ještě nejsou oba hráči známi, karta je zašedlá a neklikatelná
+  if (isUnresolved) {
+    stBg = isDivak ? '#1a1a1a' : '#f4f4f4';
+    stCol = isDivak ? '#666' : '#999';
+    borderCol = isDivak ? '#333' : '#ddd';
+  } else if (zapas.status === 'live') {
+    stBg = '#dc3545'; stCol = '#fff'; borderCol = '#dc3545';
+  } else if (zapas.status === 'finished') {
+    stBg = isDivak ? '#222' : '#e9ecef'; stCol = '#888'; borderCol = '#888';
   }
 
   return (
-    <div style={{ overflowX: 'auto', background: isDivak ? '#333' : '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-      <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', textAlign: 'center', fontSize: '15px' }}>
-        <thead>
-          <tr style={{ background: isDivak ? '#444' : '#e9ecef', color: isDivak ? '#fff' : '#000' }}>
-            <th style={{ padding: '12px', border: '1px solid #ccc', textAlign: 'left', minWidth: '180px' }}>Dvouhra muži<br/>{nazev}</th>
-            {hraciList.map((_, i) => <th key={i} style={{ padding: '12px', border: '1px solid #ccc', width: '60px' }}>{i + 1}</th>)}
-            <th style={{ padding: '12px', border: '1px solid #ccc' }}>Body</th>
-            <th style={{ padding: '12px', border: '1px solid #ccc' }}>Skóre</th>
-            <th style={{ padding: '12px', border: '1px solid #ccc' }}>Pořadí</th>
-          </tr>
-          <tr style={{ background: isDivak ? '#555' : '#f8f9fa', color: isDivak ? '#ccc' : '#555', fontSize: '13px' }}>
-            <th style={{ border: '1px solid #ccc' }}></th>
-            {hraciList.map((h, i) => <th key={i} style={{ padding: '5px', border: '1px solid #ccc', whiteSpace: 'nowrap' }}>{zkraceneJmeno(h)}</th>)}
-            <th style={{ border: '1px solid #ccc' }}></th><th style={{ border: '1px solid #ccc' }}></th><th style={{ border: '1px solid #ccc' }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {hraciList.map((hrac, rIdx) => {
-            const s = staty[hrac];
-            return (
-              <tr key={hrac} style={{ background: isDivak ? '#2c2c2c' : '#fff' }}>
-                <td style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold', border: '1px solid #ccc', whiteSpace: 'nowrap', color: isDivak ? '#fff' : '#000' }}><span style={{ marginRight: '15px', color: '#888' }}>{rIdx + 1}</span> {hrac}</td>
-                {hraciList.map((colHrac, cIdx) => {
-                  if (rIdx === cIdx) return <td key={cIdx} style={{ background: isDivak ? '#555' : '#ddd', border: '1px solid #ccc' }}></td>
-                  return <td key={cIdx} style={{ padding: '12px', border: '1px solid #ccc', whiteSpace: 'nowrap', color: isDivak ? '#ddd' : '#444' }}>{getScoreText(hrac, colHrac)}</td>
-                })}
-                <td style={{ padding: '12px', fontWeight: 'bold', border: '1px solid #ccc', color: '#007bff' }}>{s.body}</td>
-                <td style={{ padding: '12px', border: '1px solid #ccc', color: isDivak ? '#fff' : '#000' }}>{s.gamesW}:{s.gamesL}</td>
-                <td style={{ padding: '12px', fontWeight: 'bold', border: '1px solid #ccc', background: s.poradi === 1 ? '#ffd700' : s.poradi === 2 ? '#e3e4e5' : s.poradi === 3 ? '#cd7f32' : 'transparent', color: (s.poradi <= 3 && !isDivak) ? '#000' : (isDivak ? '#fff' : 'inherit') }}>{s.poradi}.</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+    <div 
+      onClick={() => { if (!isUnresolved && otevritZapas) otevritZapas(zapas.id); }} 
+      style={{ 
+        background: stBg, 
+        border: `2px solid ${borderCol}`, 
+        padding: '15px', 
+        borderRadius: '10px', 
+        marginBottom: '15px', 
+        cursor: isUnresolved ? 'default' : 'pointer', 
+        width: '240px', 
+        boxShadow: isUnresolved ? 'none' : '0 4px 8px rgba(0,0,0,0.1)',
+        opacity: isUnresolved ? 0.8 : 1
+      }}
+    >
+      <div style={{ fontWeight: 'bold', borderBottom: `1px solid ${borderCol}`, paddingBottom: '10px', marginBottom: '10px', color: stCol, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{zapas.player1_name || 'Hráč 1'}</span>
+        {zapas.status === 'finished' && <span style={{fontSize:'18px', color: '#007bff'}}>{zapas.match_state?.sets_won?.player1}</span>}
+      </div>
 
-export const SkupinaTable = ({ matches, hraciList, nazev }) => {
-  const { serazeni: vysledky } = vypocitejTabulku(matches, hraciList);
-  if (vysledky.length === 0) return null;
-
-  return (
-    <div style={{ overflowX: 'auto', background: isDivak ? '#333' : '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-      <h2 style={{ margin: '0 0 20px 0', color: isDivak ? '#ffeb3b' : '#000' }}>📊 {nazev}</h2>
-      <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'center', fontSize: '18px' }}>
-        <thead>
-          <tr style={{ background: isDivak ? '#444' : '#e9ecef', color: isDivak ? '#fff' : '#000' }}>
-            <th style={{ padding: '12px' }}>#</th><th style={{ padding: '12px', textAlign: 'left' }}>Hráč</th><th style={{ padding: '12px' }}>Z</th><th style={{ padding: '12px' }}>V</th><th style={{ padding: '12px' }}>P</th><th style={{ padding: '12px' }}>Sety</th><th style={{ padding: '12px' }}>Gemy</th><th style={{ padding: '12px', fontSize: '22px' }}>Body</th>
-          </tr>
-        </thead>
-        <tbody>
-          {vysledky.map((s, idx) => (
-            <tr key={s.jmeno} style={{ borderBottom: '1px solid #ddd', background: idx === 0 ? (isDivak ? '#3a503a' : '#e2f0d9') : 'transparent', color: isDivak ? '#fff' : '#000' }}>
-              <td style={{ padding: '12px', fontWeight: 'bold' }}>{idx + 1}.</td><td style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>{s.jmeno}</td><td style={{ padding: '12px' }}>{s.z}</td><td style={{ padding: '12px', color: '#28a745', fontWeight: 'bold' }}>{s.v}</td><td style={{ padding: '12px', color: '#dc3545' }}>{s.p}</td><td style={{ padding: '12px' }}>{s.setsW}:{s.setsL}</td><td style={{ padding: '12px' }}>{s.gamesW}:{s.gamesL}</td><td style={{ padding: '12px', fontWeight: 'bold', fontSize: '22px', color: '#007bff' }}>{s.body}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div style={{ fontWeight: 'bold', color: stCol, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{zapas.player2_name || 'Hráč 2'}</span>
+        {zapas.status === 'finished' && <span style={{fontSize:'18px', color: '#007bff'}}>{zapas.match_state?.sets_won?.player2}</span>}
+      </div>
+      
+      {zapas.status === 'live' && <div style={{ color: '#fff', fontSize: '12px', marginTop: '10px', fontWeight: 'bold', textAlign: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '5px', padding: '4px' }}>🔴 LIVE</div>}
+      
+      {isUnresolved && <div style={{ color: stCol, fontSize: '11px', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>Čeká se na postupující z předchozího kola</div>}
     </div>
   )
 }
