@@ -47,7 +47,9 @@ export const MatchView = ({
   const ukazatKonecnyOverlay = dosahlKonce && !isZapasLocked;
   const vitezName = score?.sets_won?.player1 === 2 ? score.player1_name : score.player2_name;
 
+  // --- 100% PŘESNÁ MATEMATIKA PRO PŘEHAZOVÁNÍ STRAN ---
   let currentStartSide = 0; 
+
   if (score?.completed_sets) {
     for (let set of score.completed_sets) {
       const gemyVSetu = set.player1_games + set.player2_games;
@@ -70,35 +72,43 @@ export const MatchView = ({
   const zobrazitProhozene = automatickyProhozeno !== manualniStrany;
 
   // ====================================================
-  // DIVÁK (100dvh + overflow: hidden ZAKAZUJE SCROLLOVÁNÍ)
+  // PLYNULÉ (RESPONSIVE) KARTY HRÁČŮ PRO DIVÁKA
+  // Jsou navržené tak, aby scvrkly texty podle výšky/šířky displeje
   // ====================================================
+  
   const Hrac1_Divak = (
-    <div key="h1_d" style={{ flex: '1 1 0', minWidth: '250px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(18px, 4vh, 40px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 1 && "🎾 "} {score.player1_name || "Hráč 1"}</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-around', margin: 'clamp(5px, 2vh, 15px) 0', background: '#222', padding: 'clamp(5px, 1vh, 10px)', borderRadius: '10px' }}>
-        <div><span style={{ fontSize: 'clamp(12px, 2vh, 20px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'clamp(20px, 5vh, 40px)' }}>{score.sets_won?.player1 || 0}</strong></div>
-        <div><span style={{ fontSize: 'clamp(12px, 2vh, 20px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'clamp(20px, 5vh, 40px)', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</strong></div>
+    <div key="h1_d" style={{ flex: '1 1 250px', background: '#111', padding: 'min(2vh, 15px)', borderRadius: '15px', border: score.server === 1 ? '4px solid #00ff88' : '4px solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <h2 style={{ fontSize: 'min(4vh, 7vw, 35px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 1 && "🎾 "} {score.player1_name || "Hráč 1"}</h2>
+      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-around', margin: 'min(1.5vh, 10px) 0', background: '#222', padding: 'min(1vh, 8px)', borderRadius: '10px' }}>
+        <div><span style={{ fontSize: 'min(2vh, 14px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'min(4.5vh, 8vw, 35px)' }}>{score.sets_won?.player1 || 0}</strong></div>
+        <div><span style={{ fontSize: 'min(2vh, 14px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'min(4.5vh, 8vw, 35px)', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</strong></div>
       </div>
-      <div style={{ fontSize: 'clamp(60px, 20vh, 250px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1, marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 0 }}>{score.current_game.player1_points}</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+        <span style={{ fontSize: 'min(30vh, 35vw, 250px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player1_points}</span>
+      </div>
     </div>
   );
 
   const Hrac2_Divak = (
-    <div key="h2_d" style={{ flex: '1 1 0', minWidth: '250px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(18px, 4vh, 40px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 2 && "🎾 "} {score.player2_name || "Hráč 2"}</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-around', margin: 'clamp(5px, 2vh, 15px) 0', background: '#222', padding: 'clamp(5px, 1vh, 10px)', borderRadius: '10px' }}>
-        <div><span style={{ fontSize: 'clamp(12px, 2vh, 20px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'clamp(20px, 5vh, 40px)' }}>{score.sets_won?.player2 || 0}</strong></div>
-        <div><span style={{ fontSize: 'clamp(12px, 2vh, 20px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'clamp(20px, 5vh, 40px)', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</strong></div>
+    <div key="h2_d" style={{ flex: '1 1 250px', background: '#111', padding: 'min(2vh, 15px)', borderRadius: '15px', border: score.server === 2 ? '4px solid #00ff88' : '4px solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <h2 style={{ fontSize: 'min(4vh, 7vw, 35px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 2 && "🎾 "} {score.player2_name || "Hráč 2"}</h2>
+      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-around', margin: 'min(1.5vh, 10px) 0', background: '#222', padding: 'min(1vh, 8px)', borderRadius: '10px' }}>
+        <div><span style={{ fontSize: 'min(2vh, 14px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'min(4.5vh, 8vw, 35px)' }}>{score.sets_won?.player2 || 0}</strong></div>
+        <div><span style={{ fontSize: 'min(2vh, 14px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'min(4.5vh, 8vw, 35px)', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</strong></div>
       </div>
-      <div style={{ fontSize: 'clamp(60px, 20vh, 250px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1, marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 0 }}>{score.current_game.player2_points}</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+        <span style={{ fontSize: 'min(30vh, 35vw, 250px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player2_points}</span>
+      </div>
     </div>
   );
 
+  // U DIVÁKA NIKDY NEMĚNÍME STRANY (STATICKÉ)
   const kartyDivak = [Hrac1_Divak, Hrac2_Divak];
 
   // ====================================================
-  // ROZHODČÍ (S rolováním, jak to má být)
+  // KARTY HRÁČŮ PRO ROZHODČÍHO
   // ====================================================
+
   const Hrac1_Rozhodci = (
     <div key="h1_r" style={{ flex: '1 1 300px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? '5px solid #28a745' : '5px solid #ddd', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ minHeight: '35px', visibility: score.server === 1 ? 'visible' : 'hidden' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#218838', marginBottom: '5px' }}>🎾 PODÁVÁ</div></div>
@@ -125,29 +135,31 @@ export const MatchView = ({
     </div>
   );
 
+  // U ROZHODČÍHO SE STRANY DYNAMICKY MĚNÍ
   const kartyRozhodci = zobrazitProhozene ? [Hrac2_Rozhodci, Hrac1_Rozhodci] : [Hrac1_Rozhodci, Hrac2_Rozhodci];
 
 
   // === VYKRESLENÍ: DIVÁK ===
   if (isDivak) {
     return (
-      <div style={{ textAlign: 'center', background: '#000', color: 'white', height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', width: '100%', position: 'relative', boxSizing: 'border-box' }}>
+      // Zásadní změna: position: fixed a overflow: hidden zabrání jakémukoliv posouvání
+      <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '10px', boxSizing: 'border-box', zIndex: 50 }}>
         
-        <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '10px', left: '10px', padding: '8px 12px', fontSize: '14px', background: '#222', color: '#aaa', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
-
-        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10 }}>
-          <button onClick={toggleFullscreen} style={{ padding: '8px 12px', fontSize: '14px', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
-            {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
-          </button>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', position: 'relative', minHeight: '40px', marginBottom: '5px' }}>
+          <button onClick={zpetDoMenu} style={{ position: 'absolute', left: 0, top: 0, padding: '8px 15px', fontSize: '14px', background: '#333', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
+          <div style={{ position: 'absolute', right: 0, top: 0, zIndex: 10 }}>
+            <button onClick={toggleFullscreen} style={{ padding: '8px 15px', fontSize: '14px', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+              {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
+            </button>
+          </div>
         </div>
 
-        <h1 style={{ color: '#ffeb3b', margin: '0 0 5px 0', fontSize: 'clamp(18px, 4vh, 30px)' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>
-        
-        {dosahlKonce && <h2 style={{ color: '#28a745', fontSize: 'clamp(20px, 4vh, 35px)', margin: '0 0 5px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
-        {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: 'clamp(16px, 3vh, 30px)', margin: '0 0 5px 0' }}>TIE-BREAK</h2>}
-        
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '5px 0' }}>
-          <div style={{ display: 'flex', gap: '8px', fontSize: 'clamp(14px, 3vh, 25px)', fontWeight: 'bold', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ flexShrink: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h1 style={{ color: '#ffeb3b', margin: '0 0 5px 0', fontSize: 'min(3.5vh, 22px)' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>
+          {dosahlKonce && <h2 style={{ color: '#28a745', fontSize: 'min(4vh, 26px)', margin: '0 0 5px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
+          {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: 'min(3vh, 20px)', margin: '0 0 5px 0' }}>TIE-BREAK</h2>}
+          
+          <div style={{ display: 'flex', gap: '8px', fontSize: 'min(2.5vh, 18px)', fontWeight: 'bold', flexWrap: 'wrap', justifyContent: 'center', margin: '5px 0 10px 0' }}>
             {score?.completed_sets?.map((set, i) => (
               <div key={i} style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '6px', color: '#fff' }}>
                 {set.player1_games}:{set.player2_games}
@@ -156,7 +168,8 @@ export const MatchView = ({
           </div>
         </div>
         
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', width: '100%', maxWidth: '1600px', flex: 1, minHeight: 0, alignItems: 'stretch', justifyContent: 'center' }}>
+        {/* Kontejner s kartami. Bere si všechen zbývající prostor */}
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '10px', width: '100%', maxWidth: '1600px', margin: '0 auto', minHeight: 0 }}>
           {kartyDivak}
         </div>
       </div>
