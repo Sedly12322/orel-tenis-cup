@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { generujHlaseni } from '../utils/gameLogic';
 
 export const MatchView = ({
@@ -14,10 +14,33 @@ export const MatchView = ({
   ukoncitZapas,
   pridatBod,
   zmenitJmenoHrace,
-  tvMode,        // <--- Tyto dvě vlastnosti tady chyběly!
-  setTvMode,     
-  isDivak
+  tvMode,
+  setTvMode,
+  isDivak // Správně přijímáme z App.jsx (už žádné window.location.search!)
 }) => {
+  // --- STAV PRO FULLSCREEN ---
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Posluchač na změnu fullscreenu (např. když uživatel zmáčkne ESC na klávesnici)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Funkce pro přepnutí celoobrazovkového režimu
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.log(err));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
   const zamknoutJmena = (aktualniZapas?.round !== null && aktualniZapas?.status !== 'planned') || (aktualniZapas?.status === 'finished');
   const minulyStav = history.length > 0 ? history[history.length - 1] : null;
@@ -38,14 +61,12 @@ export const MatchView = ({
     return (
       <div style={{ textAlign: 'center', background: '#000', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: tvMode ? 'center' : 'flex-start', padding: tvMode ? '20px' : '60px 15px 20px 15px', width: '100%', position: 'relative' }}>
         
-        {/* Tlačítko zpět */}
         {!tvMode ? (
           <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '15px', left: '15px', padding: '10px 15px', fontSize: '16px', background: '#333', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>← Zpět</button>
         ) : (
           <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '15px 25px', fontSize: '20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>←</button>
         )}
 
-        {/* TLAČÍTKO PRO PŘEPNUTÍ REŽIMU (Vráceno zpět!) */}
         <div style={{ position: 'absolute', top: '15px', right: '15px' }}>
           <button onClick={() => setTvMode(!tvMode)} style={{ padding: '10px 15px', fontSize: '16px', background: tvMode ? '#007bff' : '#6c757d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
             {tvMode ? '📺 TV Režim' : '📱 Mobilní režim'}
@@ -57,10 +78,8 @@ export const MatchView = ({
         
         <div style={{ display: 'flex', justifyContent: 'center', margin: tvMode ? '30px 0' : '15px 0' }}><RenderSety /></div>
         
-        {/* HLAVNÍ KONTEJNER - Flex column na mobilu, Flex row na TV */}
         <div style={{ display: 'flex', flexDirection: tvMode ? 'row' : 'column', gap: tvMode ? '60px' : '20px', width: '100%', maxWidth: tvMode ? '1400px' : '450px', alignItems: 'center', justifyContent: 'center' }}>
           
-          {/* HRÁČ 1 */}
           <div style={{ flex: '1 1 100%', width: '100%', background: '#111', padding: tvMode ? '50px' : '20px', borderRadius: '15px', border: score.server === 1 ? (tvMode ? '6px solid #00ff88' : '3px solid #00ff88') : '3px solid transparent' }}>
             <h2 style={{ fontSize: tvMode ? '50px' : '26px', margin: 0, color: '#fff' }}>{score.server === 1 && "🎾 "} {score.player1_name || "Hráč 1"}</h2>
             <div style={{ display: 'flex', justifyContent: 'space-around', margin: tvMode ? '30px 0' : '15px 0', background: '#222', padding: '10px', borderRadius: '10px' }}>
@@ -70,7 +89,6 @@ export const MatchView = ({
             <div style={{ fontSize: tvMode ? '200px' : '110px', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player1_points}</div>
           </div>
           
-          {/* HRÁČ 2 */}
           <div style={{ flex: '1 1 100%', width: '100%', background: '#111', padding: tvMode ? '50px' : '20px', borderRadius: '15px', border: score.server === 2 ? (tvMode ? '6px solid #00ff88' : '3px solid #00ff88') : '3px solid transparent' }}>
             <h2 style={{ fontSize: tvMode ? '50px' : '26px', margin: 0, color: '#fff' }}>{score.server === 2 && "🎾 "} {score.player2_name || "Hráč 2"}</h2>
             <div style={{ display: 'flex', justifyContent: 'space-around', margin: tvMode ? '30px 0' : '15px 0', background: '#222', padding: '10px', borderRadius: '10px' }}>
@@ -81,46 +99,72 @@ export const MatchView = ({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  // === ROZHODČÍ NA TABLETU ===
+  // === ROZHODČÍ NA TABLETU (Zmenšené a kompaktnější) ===
   return (
-    <div style={{ textAlign: 'center', padding: '15px', background: '#f4f7f6', color: '#000', minHeight: '100vh', width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-        <button onClick={zpetDoMenu} style={{ padding: '15px 25px', fontSize: '20px', background: '#444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>← Zpět do Menu</button>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={krokZpet} disabled={history.length === 0} style={{ padding: '15px 25px', fontSize: '20px', cursor: history.length === 0 ? 'not-allowed' : 'pointer', background: history.length === 0 ? '#ccc' : '#e0a800', color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>↩ Krok zpět</button>
-          <button onClick={rucniPrepnutiPodani} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>🔄 Změnit podání</button>
-          {aktualniZapas?.status === 'planned' && <button onClick={spustitLive} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>🔴 Spustit LIVE</button>}
-          {aktualniZapas?.status === 'live' && <button onClick={ukoncitZapas} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#218838', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>✅ Ukončit zápas</button>}
+    <div style={{ textAlign: 'center', padding: '10px', background: '#f4f7f6', color: '#000', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Horní lišta - zmenšená a přidán Fullscreen */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '5px' }}>
+        <button onClick={zpetDoMenu} style={{ padding: '10px 20px', fontSize: '16px', background: '#444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>← Zpět do Menu</button>
+        
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Tlačítko pro Fullscreen */}
+          <button onClick={toggleFullscreen} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+            {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
+          </button>
+          
+          <button onClick={krokZpet} disabled={history.length === 0} style={{ padding: '10px 20px', fontSize: '16px', cursor: history.length === 0 ? 'not-allowed' : 'pointer', background: history.length === 0 ? '#ccc' : '#e0a800', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>↩ Krok zpět</button>
+          <button onClick={rucniPrepnutiPodani} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔄 Změnit podání</button>
+          {aktualniZapas?.status === 'planned' && <button onClick={spustitLive} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔴 Spustit LIVE</button>}
+          {aktualniZapas?.status === 'live' && <button onClick={ukoncitZapas} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', background: '#218838', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>✅ Ukončit zápas</button>}
         </div>
       </div>
 
-      <div style={{ background: '#222', color: '#00ff88', padding: '15px', borderRadius: '12px', fontSize: '30px', fontWeight: 'bold', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', maxWidth: '1000px', margin: '0 auto 20px auto' }}>
+      {/* Nápověda (mikrofon) - zmenšená */}
+      <div style={{ background: '#222', color: '#00ff88', padding: '10px', borderRadius: '10px', fontSize: '20px', fontWeight: 'bold', marginBottom: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', width: '100%', maxWidth: '900px', margin: '0 auto 10px auto' }}>
         🎤 Hlášení: <span style={{ color: '#fff' }}>"{navodProRozhodciho}"</span>
       </div>
 
-      {score.is_tiebreak && <h2 style={{ color: '#dc3545', fontSize: '40px', margin: '0 0 15px 0' }}>🔥 PROBÍHÁ TIE-BREAK 🔥</h2>}
+      {score.is_tiebreak && <h2 style={{ color: '#dc3545', fontSize: '32px', margin: '0 0 10px 0' }}>🔥 PROBÍHÁ TIE-BREAK 🔥</h2>}
       
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><RenderSety /></div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><RenderSety /></div>
       
-      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
-        <div style={{ flex: '1 1 350px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? '6px solid #28a745' : '6px solid #ddd', padding: '30px 20px', borderRadius: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ minHeight: '45px', visibility: score.server === 1 ? 'visible' : 'hidden' }}><div style={{ fontSize: '32px', fontWeight: 'bold', color: '#218838', marginBottom: '10px' }}>🎾 PODÁVÁ</div></div>
-          {zamknoutJmena ? <h2 style={{fontSize: '40px', margin: '10px 0 25px 0', color: '#000', fontWeight: '900'}}>{score.player1_name}</h2> : <select value={score.player1_name || 'Hráč 1'} onChange={(e) => zmenitJmenoHrace('player1_name', e.target.value)} style={{ fontSize: '30px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '10px', marginBottom: '20px', border: '3px solid #ccc', borderRadius: '10px', background: '#fff', color: '#000' }}><option value={score.player1_name}>{score.player1_name}</option><option value="Hráč 1">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
-          <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}><div><span style={{ fontSize: '26px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '50px', color: '#000' }}>{score.sets_won?.player1 || 0}</strong></div><div><span style={{ fontSize: '26px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '50px', color: '#000' }}>{score.current_set?.player1_games || 0}</strong></div></div>
-          <div style={{ fontSize: '150px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player1_points}</div>
-          <button onClick={() => pridatBod(1)} style={{ padding: '30px 20px', fontSize: '45px', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '15px', width: '100%', fontWeight: '900', boxShadow: '0 6px 15px rgba(0,123,255,0.5)', marginTop: 'auto' }}>+ BOD</button>
+      {/* Karty hráčů - kompaktní */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', width: '100%', maxWidth: '1200px', margin: '0 auto', flexGrow: 1 }}>
+        
+        {/* Karta Hráče 1 */}
+        <div style={{ flex: '1 1 300px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? '5px solid #28a745' : '5px solid #ddd', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ minHeight: '35px', visibility: score.server === 1 ? 'visible' : 'hidden' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#218838', marginBottom: '5px' }}>🎾 PODÁVÁ</div></div>
+          
+          {zamknoutJmena ? <h2 style={{fontSize: '32px', margin: '5px 0 15px 0', color: '#000', fontWeight: '900'}}>{score.player1_name}</h2> : <select value={score.player1_name || 'Hráč 1'} onChange={(e) => zmenitJmenoHrace('player1_name', e.target.value)} style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '8px', marginBottom: '15px', border: '2px solid #ccc', borderRadius: '8px', background: '#fff', color: '#000' }}><option value={score.player1_name}>{score.player1_name}</option><option value="Hráč 1">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
+          
+          <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '10px', borderRadius: '10px', marginBottom: '10px' }}>
+            <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.sets_won?.player1 || 0}</strong></div>
+            <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player1_games || 0}</strong></div>
+          </div>
+          
+          <div style={{ fontSize: '110px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player1_points}</div>
+          <button onClick={() => pridatBod(1)} style={{ padding: '20px 15px', fontSize: '36px', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: '0 4px 10px rgba(0,123,255,0.4)', marginTop: 'auto' }}>+ BOD</button>
         </div>
-        <div style={{ flex: '1 1 350px', background: score.server === 2 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 2 ? '6px solid #28a745' : '6px solid #ddd', padding: '30px 20px', borderRadius: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ minHeight: '45px', visibility: score.server === 2 ? 'visible' : 'hidden' }}><div style={{ fontSize: '32px', fontWeight: 'bold', color: '#218838', marginBottom: '10px' }}>🎾 PODÁVÁ</div></div>
-          {zamknoutJmena ? <h2 style={{fontSize: '40px', margin: '10px 0 25px 0', color: '#000', fontWeight: '900'}}>{score.player2_name}</h2> : <select value={score.player2_name || 'Hráč 2'} onChange={(e) => zmenitJmenoHrace('player2_name', e.target.value)} style={{ fontSize: '30px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '10px', marginBottom: '20px', border: '3px solid #ccc', borderRadius: '10px', background: '#fff', color: '#000' }}><option value={score.player2_name}>{score.player2_name}</option><option value="Hráč 2">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
-          <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}><div><span style={{ fontSize: '26px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '50px', color: '#000' }}>{score.sets_won?.player2 || 0}</strong></div><div><span style={{ fontSize: '26px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '50px', color: '#000' }}>{score.current_set?.player2_games || 0}</strong></div></div>
-          <div style={{ fontSize: '150px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player2_points}</div>
-          <button onClick={() => pridatBod(2)} style={{ padding: '30px 20px', fontSize: '45px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '15px', width: '100%', fontWeight: '900', boxShadow: '0 6px 15px rgba(40,167,69,0.5)', marginTop: 'auto' }}>+ BOD</button>
+
+        {/* Karta Hráče 2 */}
+        <div style={{ flex: '1 1 300px', background: score.server === 2 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 2 ? '5px solid #28a745' : '5px solid #ddd', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ minHeight: '35px', visibility: score.server === 2 ? 'visible' : 'hidden' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#218838', marginBottom: '5px' }}>🎾 PODÁVÁ</div></div>
+          
+          {zamknoutJmena ? <h2 style={{fontSize: '32px', margin: '5px 0 15px 0', color: '#000', fontWeight: '900'}}>{score.player2_name}</h2> : <select value={score.player2_name || 'Hráč 2'} onChange={(e) => zmenitJmenoHrace('player2_name', e.target.value)} style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '8px', marginBottom: '15px', border: '2px solid #ccc', borderRadius: '8px', background: '#fff', color: '#000' }}><option value={score.player2_name}>{score.player2_name}</option><option value="Hráč 2">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
+          
+          <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '10px', borderRadius: '10px', marginBottom: '10px' }}>
+            <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.sets_won?.player2 || 0}</strong></div>
+            <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player2_games || 0}</strong></div>
+          </div>
+          
+          <div style={{ fontSize: '110px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player2_points}</div>
+          <button onClick={() => pridatBod(2)} style={{ padding: '20px 15px', fontSize: '36px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: '0 4px 10px rgba(40,167,69,0.4)', marginTop: 'auto' }}>+ BOD</button>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
