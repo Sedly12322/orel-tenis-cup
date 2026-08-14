@@ -15,12 +15,12 @@ export const MatchView = ({
   pridatBod,
   zmenitJmenoHrace,
   znovuOtevritZapas,
-  tvMode,
+  tvMode, // Prop sice přijímáme, ale divák už ho nepotřebuje, adaptuje se sám
   setTvMode,
   isDivak
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [manualniStrany, setManualniStrany] = useState(false); // NOVÉ: manuální prohození stran
+  const [manualniStrany, setManualniStrany] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -47,71 +47,74 @@ export const MatchView = ({
   const ukazatKonecnyOverlay = dosahlKonce && !isZapasLocked;
   const vitezName = score?.sets_won?.player1 === 2 ? score.player1_name : score.player2_name;
 
-  // --- MATEMATIKA PRO AUTOMATICKÉ PŘEHOZENÍ STRAN ---
-  const minuleSetyGemy = score?.completed_sets?.reduce((sum, set) => sum + set.player1_games + set.player2_games, 0) || 0;
-  const aktualniSetyGemy = (score?.current_set?.player1_games || 0) + (score?.current_set?.player2_games || 0);
-  const celkemGemu = minuleSetyGemy + aktualniSetyGemy;
+  // --- MATEMATIKA PRO PŘEHAZOVÁNÍ STRAN (POUZE PRO ROZHODČÍHO) ---
+  let currentStartSide = 0; // 0 = základní strana, 1 = prohozená strana
 
-  // V tenise se strany střídají po lichém gemu. 
-  // Tento jednoduchý vzorec s % 4 řeší naprosto plynulý přechod přes celý zápas
-  const baseSwap = (celkemGemu % 4 === 1 || celkemGemu % 4 === 2);
-
-  // V tie-breaku se mění po každých 6 bodech
-  let tbSwap = false;
-  if (score?.is_tiebreak) {
-    const tbPoints = (parseInt(score?.current_game?.player1_points) || 0) + (parseInt(score?.current_game?.player2_points) || 0);
-    tbSwap = Math.floor(tbPoints / 6) % 2 !== 0;
+  if (score?.completed_sets) {
+    for (let set of score.completed_sets) {
+      const gemyVSetu = set.player1_games + set.player2_games;
+      const sideDuringLastGame = (currentStartSide + Math.floor(gemyVSetu / 2)) % 2;
+      
+      if (gemyVSetu % 2 !== 0) {
+        currentStartSide = 1 - sideDuringLastGame;
+      } else {
+        currentStartSide = sideDuringLastGame;
+      }
+    }
   }
 
-  // Výsledné zobrazení = automatika kombinovaná s případným manuálním zásahem rozhodčího
-  const automatickyProhozeno = baseSwap !== tbSwap;
+  const aktualniSetyGemy = (score?.current_set?.player1_games || 0) + (score?.current_set?.player2_games || 0);
+  let finalSide = (currentStartSide + Math.floor((aktualniSetyGemy + 1) / 2)) % 2;
+
+  if (score?.is_tiebreak) {
+    const tbPoints = (parseInt(score?.current_game?.player1_points) || 0) + (parseInt(score?.current_game?.player2_points) || 0);
+    const tbSwapsCount = Math.floor(tbPoints / 6);
+    finalSide = (finalSide + tbSwapsCount) % 2;
+  }
+
+  const automatickyProhozeno = finalSide !== 0;
   const zobrazitProhozene = automatickyProhozeno !== manualniStrany;
 
-  const RenderSety = () => (
-    <div style={{ display: 'flex', gap: '8px', fontSize: tvMode ? '30px' : '18px', fontWeight: 'bold', flexWrap: 'wrap', justifyContent: 'center' }}>
-      {score?.completed_sets?.map((set, i) => (
-        <div key={i} style={{ background: isDivak ? 'rgba(255,255,255,0.1)' : '#e9ecef', padding: '4px 12px', borderRadius: '6px', color: isDivak ? '#fff' : '#333', border: isDivak ? 'none' : '1px solid #ccc' }}>
-          {set.player1_games}:{set.player2_games}
-        </div>
-      ))}
-    </div>
-  );
-
-  // === EXTRUHOVANÉ KARTY HRÁČŮ PRO SNADNÉ PŘEHAZOVÁNÍ ===
-  
-  // 1. DIVÁCKÉ KARTY
+  // ====================================================
+  // PLYNULÉ (RESPONSIVE) KARTY HRÁČŮ PRO DIVÁKA
+  // Tyto karty používají min(vw, vh), aby se scvrkly na šířku displeje bez scrollování!
+  // ====================================================
   const Hrac1_Divak = (
-    <div key="h1_d" style={{ flex: '1 1 100%', width: '100%', background: '#111', padding: tvMode ? '50px' : '20px', borderRadius: '15px', border: score.server === 1 ? (tvMode ? '6px solid #00ff88' : '3px solid #00ff88') : '3px solid transparent' }}>
-      <h2 style={{ fontSize: tvMode ? '50px' : '26px', margin: 0, color: '#fff' }}>{score.server === 1 && "🎾 "} {score.player1_name || "Hráč 1"}</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-around', margin: tvMode ? '30px 0' : '15px 0', background: '#222', padding: '10px', borderRadius: '10px' }}>
-        <div><span style={{ fontSize: tvMode ? '24px' : '14px', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: tvMode ? '50px' : '26px' }}>{score.sets_won?.player1 || 0}</strong></div>
-        <div><span style={{ fontSize: tvMode ? '24px' : '14px', color: '#aaa' }}>Gemy</span><br/><strong style={{ fontSize: tvMode ? '50px' : '26px', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</strong></div>
+    <div key="h1_d" style={{ flex: '1 1 300px', background: '#111', padding: 'clamp(10px, min(4vw, 4vh), 50px)', borderRadius: '20px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+      <h2 style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 1 && "🎾 "} {score.player1_name || "Hráč 1"}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-around', margin: 'clamp(5px, min(3vw, 3vh), 30px) 0', background: '#222', padding: 'clamp(5px, 2vw, 20px)', borderRadius: '15px' }}>
+        <div><span style={{ fontSize: 'clamp(12px, min(2vw, 3vh), 26px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)' }}>{score.sets_won?.player1 || 0}</strong></div>
+        <div><span style={{ fontSize: 'clamp(12px, min(2vw, 3vh), 26px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</strong></div>
       </div>
-      <div style={{ fontSize: tvMode ? '200px' : '110px', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player1_points}</div>
+      <div style={{ fontSize: 'clamp(80px, min(25vw, 35vh), 280px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1, marginTop: 'auto' }}>{score.current_game.player1_points}</div>
     </div>
   );
 
   const Hrac2_Divak = (
-    <div key="h2_d" style={{ flex: '1 1 100%', width: '100%', background: '#111', padding: tvMode ? '50px' : '20px', borderRadius: '15px', border: score.server === 2 ? (tvMode ? '6px solid #00ff88' : '3px solid #00ff88') : '3px solid transparent' }}>
-      <h2 style={{ fontSize: tvMode ? '50px' : '26px', margin: 0, color: '#fff' }}>{score.server === 2 && "🎾 "} {score.player2_name || "Hráč 2"}</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-around', margin: tvMode ? '30px 0' : '15px 0', background: '#222', padding: '10px', borderRadius: '10px' }}>
-        <div><span style={{ fontSize: tvMode ? '24px' : '14px', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: tvMode ? '50px' : '26px' }}>{score.sets_won?.player2 || 0}</strong></div>
-        <div><span style={{ fontSize: tvMode ? '24px' : '14px', color: '#aaa' }}>Gemy</span><br/><strong style={{ fontSize: tvMode ? '50px' : '26px', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</strong></div>
+    <div key="h2_d" style={{ flex: '1 1 300px', background: '#111', padding: 'clamp(10px, min(4vw, 4vh), 50px)', borderRadius: '20px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+      <h2 style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)', margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{score.server === 2 && "🎾 "} {score.player2_name || "Hráč 2"}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-around', margin: 'clamp(5px, min(3vw, 3vh), 30px) 0', background: '#222', padding: 'clamp(5px, 2vw, 20px)', borderRadius: '15px' }}>
+        <div><span style={{ fontSize: 'clamp(12px, min(2vw, 3vh), 26px)', color: '#aaa' }}>Sety</span><br/><strong style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)' }}>{score.sets_won?.player2 || 0}</strong></div>
+        <div><span style={{ fontSize: 'clamp(12px, min(2vw, 3vh), 26px)', color: '#aaa' }}>Hry</span><br/><strong style={{ fontSize: 'clamp(20px, min(5vw, 6vh), 60px)', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</strong></div>
       </div>
-      <div style={{ fontSize: tvMode ? '200px' : '110px', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player2_points}</div>
+      <div style={{ fontSize: 'clamp(80px, min(25vw, 35vh), 280px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1, marginTop: 'auto' }}>{score.current_game.player2_points}</div>
     </div>
   );
 
-  const kartyDivak = zobrazitProhozene ? [Hrac2_Divak, Hrac1_Divak] : [Hrac1_Divak, Hrac2_Divak];
+  // U DIVÁKA NIKDY NEMĚNÍME STRANY (STATICKÉ)
+  const kartyDivak = [Hrac1_Divak, Hrac2_Divak];
 
-  // 2. ROZHODCOVSKÉ KARTY
+  // ====================================================
+  // KARTY HRÁČŮ PRO ROZHODČÍHO
+  // ====================================================
+
   const Hrac1_Rozhodci = (
     <div key="h1_r" style={{ flex: '1 1 300px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? '5px solid #28a745' : '5px solid #ddd', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ minHeight: '35px', visibility: score.server === 1 ? 'visible' : 'hidden' }}><div style={{ fontSize: '24px', fontWeight: 'bold', color: '#218838', marginBottom: '5px' }}>🎾 PODÁVÁ</div></div>
       {zamknoutJmena ? <h2 style={{fontSize: '32px', margin: '5px 0 15px 0', color: '#000', fontWeight: '900'}}>{score.player1_name}</h2> : <select value={score.player1_name || 'Hráč 1'} onChange={(e) => zmenitJmenoHrace('player1_name', e.target.value)} style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '8px', marginBottom: '15px', border: '2px solid #ccc', borderRadius: '8px', background: '#fff', color: '#000' }}><option value={score.player1_name}>{score.player1_name}</option><option value="Hráč 1">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
       <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '10px', borderRadius: '10px', marginBottom: '10px' }}>
         <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.sets_won?.player1 || 0}</strong></div>
-        <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player1_games || 0}</strong></div>
+        <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Hry</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player1_games || 0}</strong></div>
       </div>
       <div style={{ fontSize: '110px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player1_points}</div>
       <button onClick={() => !isZapasLocked && pridatBod(1)} disabled={isZapasLocked} style={{ padding: '20px 15px', fontSize: '36px', cursor: isZapasLocked ? 'not-allowed' : 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: isZapasLocked ? 'none' : '0 4px 10px rgba(0,123,255,0.4)', opacity: isZapasLocked ? 0.5 : 1, marginTop: 'auto' }}>+ BOD</button>
@@ -124,41 +127,46 @@ export const MatchView = ({
       {zamknoutJmena ? <h2 style={{fontSize: '32px', margin: '5px 0 15px 0', color: '#000', fontWeight: '900'}}>{score.player2_name}</h2> : <select value={score.player2_name || 'Hráč 2'} onChange={(e) => zmenitJmenoHrace('player2_name', e.target.value)} style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', width: '100%', padding: '8px', marginBottom: '15px', border: '2px solid #ccc', borderRadius: '8px', background: '#fff', color: '#000' }}><option value={score.player2_name}>{score.player2_name}</option><option value="Hráč 2">Výběr hráče...</option>{hraciList.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}</select>}
       <div style={{ display: 'flex', justifyContent: 'space-around', background: '#f8f9fa', border: '2px solid #ccc', padding: '10px', borderRadius: '10px', marginBottom: '10px' }}>
         <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Sety</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.sets_won?.player2 || 0}</strong></div>
-        <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Gemy</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player2_games || 0}</strong></div>
+        <div><span style={{ fontSize: '20px', color: '#333', fontWeight: 'bold' }}>Hry</span><br/><strong style={{ fontSize: '40px', color: '#000' }}>{score.current_set?.player2_games || 0}</strong></div>
       </div>
       <div style={{ fontSize: '110px', margin: '10px 0', fontWeight: '900', lineHeight: '1', color: '#000' }}>{score.current_game.player2_points}</div>
       <button onClick={() => !isZapasLocked && pridatBod(2)} disabled={isZapasLocked} style={{ padding: '20px 15px', fontSize: '36px', cursor: isZapasLocked ? 'not-allowed' : 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: isZapasLocked ? 'none' : '0 4px 10px rgba(40,167,69,0.4)', opacity: isZapasLocked ? 0.5 : 1, marginTop: 'auto' }}>+ BOD</button>
     </div>
   );
 
+  // U ROZHODČÍHO SE STRANY DYNAMICKY MĚNÍ
   const kartyRozhodci = zobrazitProhozene ? [Hrac2_Rozhodci, Hrac1_Rozhodci] : [Hrac1_Rozhodci, Hrac2_Rozhodci];
 
 
   // === VYKRESLENÍ: DIVÁK ===
   if (isDivak) {
     return (
-      <div style={{ textAlign: 'center', background: '#000', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: tvMode ? 'center' : 'flex-start', padding: tvMode ? '20px' : '60px 15px 20px 15px', width: '100%', position: 'relative' }}>
+      <div style={{ textAlign: 'center', background: '#000', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(10px, 2vh, 40px)', width: '100%', position: 'relative', boxSizing: 'border-box' }}>
         
-        {!tvMode ? (
-          <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '15px', left: '15px', padding: '10px 15px', fontSize: '16px', background: '#333', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>← Zpět</button>
-        ) : (
-          <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '15px 25px', fontSize: '20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>←</button>
-        )}
+        <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '15px', left: '15px', padding: 'clamp(8px, 1.5vw, 15px) clamp(12px, 2vw, 25px)', fontSize: 'clamp(14px, 1.5vw, 20px)', background: '#222', color: '#aaa', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
 
-        <div style={{ position: 'absolute', top: '15px', right: '15px' }}>
-          <button onClick={() => setTvMode(!tvMode)} style={{ padding: '10px 15px', fontSize: '16px', background: tvMode ? '#007bff' : '#6c757d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-            {tvMode ? '📺 TV Režim' : '📱 Mobilní režim'}
+        <div style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 10 }}>
+          <button onClick={toggleFullscreen} style={{ padding: 'clamp(8px, 1.5vw, 15px) clamp(12px, 2vw, 25px)', fontSize: 'clamp(12px, 1.5vw, 16px)', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+            {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
           </button>
         </div>
 
-        <h1 style={{ color: '#ffeb3b', margin: '0 0 10px 0', fontSize: tvMode ? '50px' : '24px' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>
+        <h1 style={{ color: '#ffeb3b', margin: '0 0 5px 0', fontSize: 'clamp(18px, min(4vw, 5vh), 50px)', paddingTop: 'clamp(5px, 1vh, 15px)' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>
         
-        {dosahlKonce && <h2 style={{ color: '#28a745', fontSize: tvMode ? '50px' : '26px', margin: '0 0 10px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
-        {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: tvMode ? '40px' : '20px', margin: '5px 0' }}>TIE-BREAK</h2>}
+        {dosahlKonce && <h2 style={{ color: '#28a745', fontSize: 'clamp(20px, min(4vw, 5vh), 50px)', margin: '0 0 10px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
+        {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: 'clamp(16px, min(3vw, 4vh), 40px)', margin: '5px 0' }}>TIE-BREAK</h2>}
         
-        <div style={{ display: 'flex', justifyContent: 'center', margin: tvMode ? '30px 0' : '15px 0' }}><RenderSety /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', margin: 'clamp(5px, 2vh, 30px) 0' }}>
+          <div style={{ display: 'flex', gap: '8px', fontSize: 'clamp(14px, min(3vw, 4vh), 30px)', fontWeight: 'bold', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {score?.completed_sets?.map((set, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.1)', padding: 'clamp(2px, 1vh, 8px) clamp(8px, 2vw, 20px)', borderRadius: '6px', color: '#fff' }}>
+                {set.player1_games}:{set.player2_games}
+              </div>
+            ))}
+          </div>
+        </div>
         
-        <div style={{ display: 'flex', flexDirection: tvMode ? 'row' : 'column', gap: tvMode ? '60px' : '20px', width: '100%', maxWidth: tvMode ? '1400px' : '450px', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(10px, 3vh, 60px)', width: '100%', maxWidth: '1600px', alignItems: 'stretch', justifyContent: 'center', flexGrow: 1 }}>
           {kartyDivak}
         </div>
       </div>
@@ -190,7 +198,6 @@ export const MatchView = ({
             {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
           </button>
           
-          {/* TLAČÍTKO PRO MANUÁLNÍ PŘEHOZENÍ STRAN */}
           <button onClick={() => setManualniStrany(!manualniStrany)} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
             ↔ Prohodit strany
           </button>
@@ -214,9 +221,17 @@ export const MatchView = ({
 
       {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#dc3545', fontSize: '32px', margin: '0 0 10px 0' }}>🔥 PROBÍHÁ TIE-BREAK 🔥</h2>}
       
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><RenderSety /></div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', gap: '8px', fontSize: '18px', fontWeight: 'bold', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {score?.completed_sets?.map((set, i) => (
+            <div key={i} style={{ background: '#e9ecef', padding: '4px 12px', borderRadius: '6px', color: '#333', border: '1px solid #ccc' }}>
+              {set.player1_games}:{set.player2_games}
+            </div>
+          ))}
+        </div>
+      </div>
       
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', width: '100%', maxWidth: '1200px', margin: '0 auto', flexGrow: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', width: '100%', maxWidth: '1200px', margin: '0 auto', flexGrow: 1, flexWrap: 'wrap' }}>
         {kartyRozhodci}
       </div>
     </div>

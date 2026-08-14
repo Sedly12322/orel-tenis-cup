@@ -26,7 +26,6 @@ function App() {
   const [history, setHistory] = useState([]);
   const [tvMode, setTvMode] = useState(false);
 
-  // --- STAVY PRO VYSKAKOVACÍ OKNO NOVÉHO ZÁPASU ---
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [newMatchGroup, setNewMatchGroup] = useState('A');
   const [newMatchP1, setNewMatchP1] = useState('');
@@ -86,19 +85,12 @@ function App() {
   const smazatHrace = async (id) => { if (window.confirm("Smazat hráče?")) await supabase.from('players').delete().eq('id', id) }
   const smazatZapas = async (id) => { if (window.confirm("Opravdu smazat zápas?")) await supabase.from('matches').delete().eq('id', id) }
 
-  // --- NOVÁ LOGIKA PRO VYTVOŘENÍ ZÁPASU (Otevře modál místo okamžitého vytvoření) ---
   const otevritNovyZapasModal = () => {
-    setNewMatchGroup('A');
-    setNewMatchP1('');
-    setNewMatchP2('');
-    setShowNewMatchModal(true);
+    setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);
   }
 
   const spustitNovyZapas = async () => {
-    if (!newMatchP1 || !newMatchP2) {
-      alert("Vyberte prosím oba hráče!");
-      return;
-    }
+    if (!newMatchP1 || !newMatchP2) { alert("Vyberte prosím oba hráče!"); return; }
     const vychoziStav = {
       player1_name: newMatchP1, player2_name: newMatchP2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
@@ -106,11 +98,7 @@ function App() {
       is_tiebreak: false
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
-    if (data && data[0]) { 
-      setActiveMatchId(data[0].id); 
-      setShowNewMatchModal(false);
-      setView('match'); 
-    }
+    if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
   const otevritZapas = (id) => { setActiveMatchId(id); setHistory([]); setView('match') }
@@ -217,15 +205,25 @@ function App() {
     let st = JSON.parse(JSON.stringify(score))
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false
+    let matchTbPoints = null; 
+
+    const isMatchTiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
 
     if (st.is_tiebreak) {
       let targetScore = 7;
       let b1 = parseInt(p1) || 0; let b2 = parseInt(p2) || 0;
       hrac === 1 ? b1++ : b2++;
+      
       if ((b1 + b2) % 2 !== 0) st.server = st.server === 1 ? 2 : 1;
       
       if ((b1 >= targetScore && b1 - b2 >= 2) || (b2 >= targetScore && b2 - b1 >= 2)) { 
-        vyhralGem = true; hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; 
+        vyhralGem = true; 
+        
+        if (isMatchTiebreak) {
+          matchTbPoints = { p1: b1, p2: b2 };
+        } else {
+          hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; 
+        }
       } else { 
         st.current_game.player1_points = b1.toString(); st.current_game.player2_points = b2.toString(); 
       }
@@ -240,10 +238,9 @@ function App() {
 
     if (vyhralGem) {
       st.current_game.player1_points = "0"; st.current_game.player2_points = "0";
-      const isMatchTiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
       
       if (isMatchTiebreak) {
-        st.completed_sets.push({ player1_games: st.current_set.player1_games, player2_games: st.current_set.player2_games });
+        st.completed_sets.push({ player1_games: matchTbPoints.p1, player2_games: matchTbPoints.p2 });
         hrac === 1 ? st.sets_won.player1++ : st.sets_won.player2++;
         st.current_set = { player1_games: 0, player2_games: 0 };
         st.is_tiebreak = false;
@@ -267,6 +264,7 @@ function App() {
     setScore(st); await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId)
   }
 
+  // --- FUNKCE PRO PAVOUKA ---
   const generovatPavouka = async () => {
     const odehraneZapasy = zapasList.filter(z => z.status === 'finished')
     const zapasyA = odehraneZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name))
@@ -389,10 +387,10 @@ function App() {
   }
 
   const liveZapasy = zapasList.filter(z => z.status === 'live')
-  const odehraneZapasy = zapasList.filter(z => z.status === 'finished')
-  const zapasyA = odehraneZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name))
-  const zapasyB = odehraneZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name))
-  const zapasyOstatni = odehraneZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && z.round === null)
+  const neZiveZapasy = zapasList.filter(z => z.status !== 'live')
+  const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name))
+  const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name))
+  const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && z.round === null)
 
   return (
     <div style={{ fontFamily: 'sans-serif', background: isDivak ? '#111' : '#f4f7f6', color: isDivak ? 'white' : '#333', minHeight: '100vh', paddingBottom: '80px' }}>
@@ -431,7 +429,6 @@ function App() {
         {zapasyOstatni.length > 0 && <div><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>🏆 Zápasy - Ostatní (Playoff)</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyOstatni.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>}
       </div>
 
-      {/* MODAL PRO VÝBĚR HRÁČŮ PŘED ZÁPASEM */}
       {showNewMatchModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '40px', borderRadius: '15px', textAlign: 'left', maxWidth: '500px', width: '90%', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
@@ -457,7 +454,6 @@ function App() {
                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '18px' }}>Hráč 2 (Soupeř):</label>
                <select value={newMatchP2} onChange={e => setNewMatchP2(e.target.value)} style={{ width: '100%', padding: '15px', fontSize: '18px', borderRadius: '8px', border: '2px solid #ccc', background: !newMatchP1 ? '#f4f4f4' : '#fff' }} disabled={!newMatchP1}>
                   <option value="">{newMatchP1 ? '-- Vyberte soupeře --' : 'Nejprve vyberte Hráče 1'}</option>
-                  {/* Vyfiltrujeme hráče 1 a všechny, se kterými už Hráč 1 hrál */}
                   {newMatchP1 && (newMatchGroup === 'A' ? HRACI_SKUPINA_A : HRACI_SKUPINA_B)
                     .filter(h => h !== newMatchP1)
                     .filter(h => !zapasList.some(z => (z.player1_name === newMatchP1 && z.player2_name === h) || (z.player1_name === h && z.player2_name === newMatchP1)))
@@ -474,7 +470,6 @@ function App() {
         </div>
       )}
 
-      {/* LOGIN MODAL */}
       {showLogin && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '40px', borderRadius: '15px', textAlign: 'center', maxWidth: '400px', width: '90%' }}>

@@ -67,7 +67,7 @@ export const SkupinaTable = ({ matches, hraciList, nazev, isDivak }) => {
       <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'center', fontSize: '18px', color: isDivak ? '#fff' : '#000' }}>
         <thead>
           <tr style={{ background: isDivak ? '#333' : '#e9ecef', color: isDivak ? '#fff' : '#000' }}>
-            <th style={{ padding: '12px' }}>#</th><th style={{ padding: '12px', textAlign: 'left' }}>Hráč</th><th style={{ padding: '12px' }}>Z</th><th style={{ padding: '12px' }}>V</th><th style={{ padding: '12px' }}>P</th><th style={{ padding: '12px' }}>Sety</th><th style={{ padding: '12px' }}>Gemy</th><th style={{ padding: '12px', fontSize: '22px' }}>Body</th>
+            <th style={{ padding: '12px' }}>#</th><th style={{ padding: '12px', textAlign: 'left' }}>Hráč</th><th style={{ padding: '12px' }}>Z</th><th style={{ padding: '12px' }}>V</th><th style={{ padding: '12px' }}>P</th><th style={{ padding: '12px' }}>Sety</th><th style={{ padding: '12px' }}>Hry</th><th style={{ padding: '12px', fontSize: '22px' }}>Body</th>
           </tr>
         </thead>
         <tbody>
