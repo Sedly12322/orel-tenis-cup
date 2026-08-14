@@ -24,7 +24,6 @@ function App() {
   
   const [score, setScore] = useState(null);
   const [history, setHistory] = useState([]);
-  const [tvMode, setTvMode] = useState(false);
 
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [newMatchGroup, setNewMatchGroup] = useState('A');
@@ -264,7 +263,6 @@ function App() {
     setScore(st); await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId)
   }
 
-  // --- FUNKCE PRO PAVOUKA ---
   const generovatPavouka = async () => {
     const odehraneZapasy = zapasList.filter(z => z.status === 'finished')
     const zapasyA = odehraneZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name))
@@ -381,7 +379,7 @@ function App() {
         score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={history}
         zpetDoMenu={zpetDoMenu} krokZpet={krokZpet} rucniPrepnutiPodani={rucniPrepnutiPodani} spustitLive={spustitLive}
         ukoncitZapas={ukoncitZapas} pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 
-        znovuOtevritZapas={znovuOtevritZapas} tvMode={tvMode} setTvMode={setTvMode} isDivak={isDivak} 
+        znovuOtevritZapas={znovuOtevritZapas} isDivak={isDivak} 
       />
     )
   }
@@ -394,39 +392,39 @@ function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', background: isDivak ? '#111' : '#f4f7f6', color: isDivak ? 'white' : '#333', minHeight: '100vh', paddingBottom: '80px' }}>
-      <div style={{ background: isDivak ? '#222' : '#fff', padding: '25px 40px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ margin: 0, fontSize: '36px', color: isDivak ? '#fff' : '#000' }}>🎾 Orel Tenis Cup Lichnov</h1>
-        <div style={{ display: 'flex', gap: '20px', marginTop: '10px', alignItems: 'center' }}>
-          {!isDivak && <button onClick={() => setView('import')} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#ffc107', color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>📥 Import dat</button>}
-          <button onClick={() => setView('bracket')} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>🏆 Pavouk</button>
-          {!isDivak && <button onClick={() => setView('players')} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>👥 Hráči</button>}
-          {isDivak ? <button onClick={() => setShowLogin(true)} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#444', color: 'white', border: '1px solid #666', borderRadius: '10px', fontWeight: 'bold' }}>🔒 Rozhodčí</button> : <button onClick={handleLogout} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>Odhlásit se</button>}
+      <div style={{ background: isDivak ? '#222' : '#fff', padding: '15px 20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 36px)', color: isDivak ? '#fff' : '#000' }}>🎾 Orel Tenis Cup</h1>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {!isDivak && <button onClick={() => setView('import')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#ffc107', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>📥 Import</button>}
+          <button onClick={() => setView('bracket')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🏆 Pavouk</button>
+          {!isDivak && <button onClick={() => setView('players')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>👥 Hráči</button>}
+          {isDivak ? <button onClick={() => setShowLogin(true)} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#444', color: 'white', border: '1px solid #666', borderRadius: '8px', fontWeight: 'bold' }}>🔒 Rozhodčí</button> : <button onClick={handleLogout} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Odhlásit</button>}
         </div>
       </div>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '50px 20px' }}>
-        {!isDivak && <div style={{ marginBottom: '50px', textAlign: 'center' }}><button onClick={otevritNovyZapasModal} style={{ padding: '20px 50px', fontSize: '26px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>➕ Vytvořit nový zápas</button></div>}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
+        {!isDivak && <div style={{ marginBottom: '40px', textAlign: 'center' }}><button onClick={otevritNovyZapasModal} style={{ padding: '15px 30px', fontSize: 'clamp(18px, 3vw, 26px)', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>➕ Vytvořit nový zápas</button></div>}
         
         <div style={{ marginBottom: '60px' }}>
-          <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', color: '#dc3545', fontSize: '32px' }}>🔴 Právě se hraje (LIVE)</h2>
-          {liveZapasy.length === 0 ? <p style={{ color: '#888', fontSize: '22px' }}>Aktuálně se nehraje žádný zápas.</p> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '30px', marginTop: '30px' }}>{liveZapasy.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div>}
+          <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', color: '#dc3545', fontSize: 'clamp(22px, 4vw, 32px)' }}>🔴 Právě se hraje (LIVE)</h2>
+          {liveZapasy.length === 0 ? <p style={{ color: '#888', fontSize: 'clamp(16px, 3vw, 22px)' }}>Aktuálně se nehraje žádný zápas.</p> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>{liveZapasy.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div>}
         </div>
         
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
-          <button onClick={() => setTypTabulky('klasicka')} style={{ padding: '15px 30px', fontSize: '20px', background: typTabulky === 'klasicka' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'klasicka' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '10px 0 0 10px', cursor: 'pointer', fontWeight: 'bold' }}>Klasická tabulka</button>
-          <button onClick={() => setTypTabulky('krizova')} style={{ padding: '15px 30px', fontSize: '20px', background: typTabulky === 'krizova' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'krizova' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '0 10px 10px 0', cursor: 'pointer', fontWeight: 'bold' }}>Křížová tabulka</button>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', flexWrap: 'wrap' }}>
+          <button onClick={() => setTypTabulky('klasicka')} style={{ padding: '10px 20px', fontSize: 'clamp(16px, 3vw, 20px)', background: typTabulky === 'klasicka' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'klasicka' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '8px 0 0 8px', cursor: 'pointer', fontWeight: 'bold' }}>Klasická tabulka</button>
+          <button onClick={() => setTypTabulky('krizova')} style={{ padding: '10px 20px', fontSize: 'clamp(16px, 3vw, 20px)', background: typTabulky === 'krizova' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'krizova' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '0 8px 8px 0', cursor: 'pointer', fontWeight: 'bold' }}>Křížová tabulka</button>
         </div>
         
         {typTabulky === 'klasicka' ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', marginBottom: '60px' }}><div style={{ flex: '1 1 600px' }}><SkupinaTable matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /></div><div style={{ flex: '1 1 600px' }}><SkupinaTable matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div></div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', marginBottom: '60px' }}><div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /></div><div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', marginBottom: '60px' }}><KrizovaTabulkaComponent matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /><KrizovaTabulkaComponent matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div>
         )}
         
-        <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina A</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyA.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
-        <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina B</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyB.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
+        <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina A</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>{zapasyA.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
+        <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina B</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>{zapasyB.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
         
-        {zapasyOstatni.length > 0 && <div><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>🏆 Zápasy - Ostatní (Playoff)</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyOstatni.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>}
+        {zapasyOstatni.length > 0 && <div><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>🏆 Zápasy - Ostatní (Playoff)</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>{zapasyOstatni.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>}
       </div>
 
       {showNewMatchModal && (
@@ -459,7 +457,6 @@ function App() {
                     .filter(h => !zapasList.some(z => (z.player1_name === newMatchP1 && z.player2_name === h) || (z.player1_name === h && z.player2_name === newMatchP1)))
                     .map(h => <option key={h} value={h}>{h}</option>)}
                </select>
-               {newMatchP1 && <p style={{ fontSize: '13px', color: '#666', marginTop: '10px' }}>* V seznamu se zobrazují pouze hráči, se kterými <strong>{newMatchP1}</strong> ještě nehrál.</p>}
             </div>
 
             <div style={{ display: 'flex', gap: '15px' }}>
