@@ -1,8 +1,6 @@
 import React from 'react';
 import { generujHlaseni } from '../utils/gameLogic';
 
-const isDivak = window.location.search.includes('divak=1');
-
 export const MatchView = ({
   score,
   activeMatchId,
@@ -16,11 +14,12 @@ export const MatchView = ({
   ukoncitZapas,
   pridatBod,
   zmenitJmenoHrace,
-  tvMode // NOVĚ PŘIDÁNO: Přijímáme informaci o tom, zda je zapnutá TV
+  tvMode,        // <--- Tyto dvě vlastnosti tady chyběly!
+  setTvMode,     
+  isDivak
 }) => {
   const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
   const zamknoutJmena = (aktualniZapas?.round !== null && aktualniZapas?.status !== 'planned') || (aktualniZapas?.status === 'finished');
-  
   const minulyStav = history.length > 0 ? history[history.length - 1] : null;
   const navodProRozhodciho = generujHlaseni(score, minulyStav);
 
@@ -39,12 +38,19 @@ export const MatchView = ({
     return (
       <div style={{ textAlign: 'center', background: '#000', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: tvMode ? 'center' : 'flex-start', padding: tvMode ? '20px' : '60px 15px 20px 15px', width: '100%', position: 'relative' }}>
         
-        {/* Na mobilu chceme normální tlačítko zpět. Na TV ho chceme spíše nenápadné, aby nerušilo obraz. */}
+        {/* Tlačítko zpět */}
         {!tvMode ? (
           <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '15px', left: '15px', padding: '10px 15px', fontSize: '16px', background: '#333', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>← Zpět</button>
         ) : (
           <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '15px 25px', fontSize: '20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>←</button>
         )}
+
+        {/* TLAČÍTKO PRO PŘEPNUTÍ REŽIMU (Vráceno zpět!) */}
+        <div style={{ position: 'absolute', top: '15px', right: '15px' }}>
+          <button onClick={() => setTvMode(!tvMode)} style={{ padding: '10px 15px', fontSize: '16px', background: tvMode ? '#007bff' : '#6c757d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+            {tvMode ? '📺 TV Režim' : '📱 Mobilní režim'}
+          </button>
+        </div>
 
         <h1 style={{ color: '#ffeb3b', margin: '0 0 10px 0', fontSize: tvMode ? '50px' : '24px' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>
         {score.is_tiebreak && <h2 style={{ color: '#ff4444', fontSize: tvMode ? '40px' : '20px', margin: '5px 0' }}>TIE-BREAK</h2>}
@@ -73,13 +79,12 @@ export const MatchView = ({
             </div>
             <div style={{ fontSize: tvMode ? '200px' : '110px', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 1 }}>{score.current_game.player2_points}</div>
           </div>
-
         </div>
       </div>
     )
   }
 
-  // === ROZHODČÍ NA TABLETU (Kód zůstává stejný) ===
+  // === ROZHODČÍ NA TABLETU ===
   return (
     <div style={{ textAlign: 'center', padding: '15px', background: '#f4f7f6', color: '#000', minHeight: '100vh', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
@@ -91,11 +96,15 @@ export const MatchView = ({
           {aktualniZapas?.status === 'live' && <button onClick={ukoncitZapas} style={{ padding: '15px 25px', fontSize: '20px', cursor: 'pointer', background: '#218838', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>✅ Ukončit zápas</button>}
         </div>
       </div>
+
       <div style={{ background: '#222', color: '#00ff88', padding: '15px', borderRadius: '12px', fontSize: '30px', fontWeight: 'bold', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', maxWidth: '1000px', margin: '0 auto 20px auto' }}>
         🎤 Hlášení: <span style={{ color: '#fff' }}>"{navodProRozhodciho}"</span>
       </div>
+
       {score.is_tiebreak && <h2 style={{ color: '#dc3545', fontSize: '40px', margin: '0 0 15px 0' }}>🔥 PROBÍHÁ TIE-BREAK 🔥</h2>}
+      
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><RenderSety /></div>
+      
       <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
         <div style={{ flex: '1 1 350px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? '6px solid #28a745' : '6px solid #ddd', padding: '30px 20px', borderRadius: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ minHeight: '45px', visibility: score.server === 1 ? 'visible' : 'hidden' }}><div style={{ fontSize: '32px', fontWeight: 'bold', color: '#218838', marginBottom: '10px' }}>🎾 PODÁVÁ</div></div>
