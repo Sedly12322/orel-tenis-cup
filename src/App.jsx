@@ -227,7 +227,7 @@ function App() {
           
           {isDivak ? (
             <button onClick={() => setTvMode(!tvMode)} style={{ background: tvMode ? '#dc3545' : '#007bff', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>
-              {tvMode ? '📱 Mobilní režim' : '📺 Režim TV'}
+              {tvMode ? '📱 Přepnout na mobilní režim' : '📺 Přepnout na režim TV'}
             </button>
           ) : (
             <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
