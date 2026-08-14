@@ -67,9 +67,12 @@ export const vypocitejTabulku = (matches, hraciList) => {
       staty[p1].setsW += s1; staty[p1].setsL += s2;
       staty[p2].setsW += s2; staty[p2].setsL += s1;
       
+      // ZDE JE OPRAVA: Počítání výher a proher
       if (s1 > s2) { 
+        staty[p1].v++; staty[p2].p++;
         if (s2 === 0) { staty[p1].body += 4; staty[p2].body += 1; } else { staty[p1].body += 3; staty[p2].body += 2; }
       } else if (s2 > s1) { 
+        staty[p2].v++; staty[p1].p++;
         if (s1 === 0) { staty[p2].body += 4; staty[p1].body += 1; } else { staty[p2].body += 3; staty[p1].body += 2; }
       }
 

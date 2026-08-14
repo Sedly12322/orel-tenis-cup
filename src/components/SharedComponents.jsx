@@ -3,26 +3,51 @@ import { vypocitejTabulku, zkraceneJmeno } from '../utils/gameLogic'
 // Globální detekce diváka
 const isDivak = window.location.search.includes('divak=1')
 
-export const ZapasCard = ({ zapas, otevritZapas, smazatZapas }) => (
-  <div style={{ background: isDivak ? '#333' : '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: isDivak ? '1px solid #444' : '1px solid #eee', display: 'flex', flexDirection: 'column' }}>
-    <div style={{ background: zapas.status === 'live' ? '#dc3545' : (isDivak ? '#444' : '#e9ecef'), color: zapas.status === 'live' ? 'white' : (isDivak ? '#aaa' : '#555'), padding: '10px 15px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span>{zapas.status === 'live' ? '🔴 LIVE' : 'Konečný výsledek'}</span>
-      {!isDivak && <button onClick={(e) => { e.stopPropagation(); smazatZapas(zapas.id); }} style={{ background: 'transparent', border: 'none', color: zapas.status === 'live' ? '#fff' : '#dc3545', cursor: 'pointer', fontSize: '18px' }}>🗑️</button>}
-    </div>
-    <div onClick={() => otevritZapas(zapas.id)} style={{ padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{color: isDivak ? '#fff' : '#000'}}>{zapas.player1_name || 'Hráč 1'}</span>
-        <span style={{ color: '#007bff', background: isDivak ? '#222' : '#f0f0f0', padding: '5px 12px', borderRadius: '5px' }}>{zapas.match_state?.sets_won?.player1 || 0}</span>
-      </div>
-      <div style={{ width: '100%', height: '1px', background: isDivak ? '#555' : '#eee' }}></div>
-      <div style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{color: isDivak ? '#fff' : '#000'}}>{zapas.player2_name || 'Hráč 2'}</span>
-        <span style={{ color: '#007bff', background: isDivak ? '#222' : '#f0f0f0', padding: '5px 12px', borderRadius: '5px' }}>{zapas.match_state?.sets_won?.player2 || 0}</span>
-      </div>
-    </div>
-  </div>
-)
+export const ZapasCard = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
+  // Pomocná funkce pro vypsání setů (např. "6:4, 3:6, 10:8")
+  const getSetyText = () => {
+    if (!zapas.match_state?.completed_sets || zapas.match_state.completed_sets.length === 0) return "";
+    return zapas.match_state.completed_sets
+      .map(s => `${s.player1_games}:${s.player2_games}`)
+      .join(', ');
+  };
 
+  return (
+    <div style={{ background: isDivak ? '#222' : '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: isDivak ? '1px solid #444' : '1px solid #eee', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: zapas.status === 'live' ? '#dc3545' : (isDivak ? '#444' : '#e9ecef'), color: zapas.status === 'live' ? 'white' : (isDivak ? '#aaa' : '#555'), padding: '10px 15px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{zapas.status === 'live' ? '🔴 LIVE' : 'Konečný výsledek'}</span>
+        {!isDivak && smazatZapas && (
+          <button onClick={(e) => { e.stopPropagation(); smazatZapas(zapas.id); }} style={{ background: 'transparent', border: 'none', color: zapas.status === 'live' ? '#fff' : '#dc3545', cursor: 'pointer', fontSize: '18px' }}>🗑️</button>
+        )}
+      </div>
+      
+      <div onClick={() => otevritZapas && otevritZapas(zapas.id)} style={{ padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', color: isDivak ? '#fff' : '#000' }}>
+          <span>{zapas.player1_name || 'Hráč 1'}</span>
+          <span style={{ color: zapas.status === 'live' ? '#007bff' : (zapas.match_state?.sets_won?.player1 > zapas.match_state?.sets_won?.player2 ? '#28a745' : '#888') }}>
+            {zapas.match_state?.sets_won?.player1 || 0}
+          </span>
+        </div>
+        
+        <div style={{ width: '100%', height: '1px', background: isDivak ? '#444' : '#eee' }}></div>
+        
+        <div style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', color: isDivak ? '#fff' : '#000' }}>
+          <span>{zapas.player2_name || 'Hráč 2'}</span>
+          <span style={{ color: zapas.status === 'live' ? '#007bff' : (zapas.match_state?.sets_won?.player2 > zapas.match_state?.sets_won?.player1 ? '#28a745' : '#888') }}>
+            {zapas.match_state?.sets_won?.player2 || 0}
+          </span>
+        </div>
+
+        {/* Napsání přesných výsledků setů u dohraných zápasů */}
+        {zapas.status === 'finished' && getSetyText() && (
+          <div style={{ marginTop: '8px', textAlign: 'center', color: isDivak ? '#aaa' : '#666', fontSize: '14px', fontStyle: 'italic' }}>
+            Průběh: {getSetyText()}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 export const BracketMatchCard = ({ zapas, otevritZapas }) => {
   let stBg = isDivak ? '#333' : '#fff';
   let stCol = isDivak ? '#fff' : '#000';
