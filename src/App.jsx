@@ -26,6 +26,12 @@ function App() {
   const [history, setHistory] = useState([]);
   const [tvMode, setTvMode] = useState(false);
 
+  // --- STAVY PRO VYSKAKOVACÍ OKNO NOVÉHO ZÁPASU ---
+  const [showNewMatchModal, setShowNewMatchModal] = useState(false);
+  const [newMatchGroup, setNewMatchGroup] = useState('A');
+  const [newMatchP1, setNewMatchP1] = useState('');
+  const [newMatchP2, setNewMatchP2] = useState('');
+
   useEffect(() => {
     const nactiZapasy = async () => {
       const { data } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
@@ -80,15 +86,31 @@ function App() {
   const smazatHrace = async (id) => { if (window.confirm("Smazat hráče?")) await supabase.from('players').delete().eq('id', id) }
   const smazatZapas = async (id) => { if (window.confirm("Opravdu smazat zápas?")) await supabase.from('matches').delete().eq('id', id) }
 
-  const vytvoritNovyZapas = async () => {
+  // --- NOVÁ LOGIKA PRO VYTVOŘENÍ ZÁPASU (Otevře modál místo okamžitého vytvoření) ---
+  const otevritNovyZapasModal = () => {
+    setNewMatchGroup('A');
+    setNewMatchP1('');
+    setNewMatchP2('');
+    setShowNewMatchModal(true);
+  }
+
+  const spustitNovyZapas = async () => {
+    if (!newMatchP1 || !newMatchP2) {
+      alert("Vyberte prosím oba hráče!");
+      return;
+    }
     const vychoziStav = {
-      player1_name: "Hráč 1", player2_name: "Hráč 2", server: 1,
+      player1_name: newMatchP1, player2_name: newMatchP2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
       is_tiebreak: false
     }
-    const { data } = await supabase.from('matches').insert([{ player1_name: "Hráč 1", player2_name: "Hráč 2", status: "planned", round: null, match_state: vychoziStav }]).select()
-    if (data && data[0]) { setActiveMatchId(data[0].id); setView('match'); }
+    const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
+    if (data && data[0]) { 
+      setActiveMatchId(data[0].id); 
+      setShowNewMatchModal(false);
+      setView('match'); 
+    }
   }
 
   const otevritZapas = (id) => { setActiveMatchId(id); setHistory([]); setView('match') }
@@ -99,7 +121,13 @@ function App() {
     setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live' } : z));
   }
 
-  // --- AUTOMATICKÝ POSUN VÍTĚZŮ V PLAYOFF ---
+  const znovuOtevritZapas = async () => {
+    if (window.confirm("Opravdu chcete zápas odemknout pro úpravy? Zápas dočasně zmizí z tabulky, dokud ho znovu neuložíte.")) {
+      await supabase.from('matches').update({ status: 'live' }).eq('id', activeMatchId);
+      setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live' } : z));
+    }
+  }
+
   const posunoutVitezeVPlayoff = async () => {
     const { data: vsechnyZapasy } = await supabase.from('matches').select('*');
     if (!vsechnyZapasy) return;
@@ -117,50 +145,36 @@ function App() {
       return null;
     };
 
-    const v1 = getVitez(qf[0]);
-    const v2 = getVitez(qf[1]);
-    const v3 = getVitez(qf[2]);
-    const v4 = getVitez(qf[3]);
+    const v1 = getVitez(qf[0]); const v2 = getVitez(qf[1]); const v3 = getVitez(qf[2]); const v4 = getVitez(qf[3]);
 
-    // Aktualizace Semifinále 1
     if (sf[0]) {
-      let p1 = sf[0].player1_name;
-      let p2 = sf[0].player2_name;
+      let p1 = sf[0].player1_name; let p2 = sf[0].player2_name;
       if (sf[0].player1_name.includes('Vítěz') && v1) p1 = v1;
       if (sf[0].player2_name.includes('Vítěz') && v2) p2 = v2;
-
       if (sf[0].player1_name !== p1 || sf[0].player2_name !== p2) {
         const newState = { ...sf[0].match_state, player1_name: p1, player2_name: p2 };
         await supabase.from('matches').update({ player1_name: p1, player2_name: p2, match_state: newState }).eq('id', sf[0].id);
       }
     }
 
-    // Aktualizace Semifinále 2
     if (sf[1]) {
-      let p1 = sf[1].player1_name;
-      let p2 = sf[1].player2_name;
+      let p1 = sf[1].player1_name; let p2 = sf[1].player2_name;
       if (sf[1].player1_name.includes('Vítěz') && v3) p1 = v3;
       if (sf[1].player2_name.includes('Vítěz') && v4) p2 = v4;
-
       if (sf[1].player1_name !== p1 || sf[1].player2_name !== p2) {
         const newState = { ...sf[1].match_state, player1_name: p1, player2_name: p2 };
         await supabase.from('matches').update({ player1_name: p1, player2_name: p2, match_state: newState }).eq('id', sf[1].id);
       }
     }
 
-    // Znovu načteme aktuální stav SF pro finále
     const { data: sfAktualni } = await supabase.from('matches').select('*').eq('round', 2).order('id', { ascending: true });
     const sfList = sfAktualni || sf;
-    const sv1 = getVitez(sfList[0]);
-    const sv2 = getVitez(sfList[1]);
+    const sv1 = getVitez(sfList[0]); const sv2 = getVitez(sfList[1]);
 
-    // Aktualizace Finále
     if (f[0]) {
-      let p1 = f[0].player1_name;
-      let p2 = f[0].player2_name;
+      let p1 = f[0].player1_name; let p2 = f[0].player2_name;
       if (f[0].player1_name.includes('Vítěz') && sv1) p1 = sv1;
       if (f[0].player2_name.includes('Vítěz') && sv2) p2 = sv2;
-
       if (f[0].player1_name !== p1 || f[0].player2_name !== p2) {
         const newState = { ...f[0].match_state, player1_name: p1, player2_name: p2 };
         await supabase.from('matches').update({ player1_name: p1, player2_name: p2, match_state: newState }).eq('id', f[0].id);
@@ -170,7 +184,7 @@ function App() {
 
   const ukoncitZapas = async () => {
     await supabase.from('matches').update({ status: 'finished' }).eq('id', activeMatchId);
-    await posunoutVitezeVPlayoff(); // Spustí automatický posun do dalšího kola
+    await posunoutVitezeVPlayoff();
     zpetDoMenu();
   }
 
@@ -205,11 +219,16 @@ function App() {
     let vyhralGem = false
 
     if (st.is_tiebreak) {
+      let targetScore = 7;
       let b1 = parseInt(p1) || 0; let b2 = parseInt(p2) || 0;
       hrac === 1 ? b1++ : b2++;
       if ((b1 + b2) % 2 !== 0) st.server = st.server === 1 ? 2 : 1;
-      if ((b1 >= 7 && b1 - b2 >= 2) || (b2 >= 7 && b2 - b1 >= 2)) { vyhralGem = true; hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; } 
-      else { st.current_game.player1_points = b1.toString(); st.current_game.player2_points = b2.toString(); }
+      
+      if ((b1 >= targetScore && b1 - b2 >= 2) || (b2 >= targetScore && b2 - b1 >= 2)) { 
+        vyhralGem = true; hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; 
+      } else { 
+        st.current_game.player1_points = b1.toString(); st.current_game.player2_points = b2.toString(); 
+      }
     } else {
       let v = hrac === 1 ? p1 : p2; let p = hrac === 1 ? p2 : p1;
       if (v === "0") v = "15"; else if (v === "15") v = "30"; else if (v === "30") v = "40";
@@ -350,18 +369,9 @@ function App() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '60px', overflowX: 'auto', paddingBottom: '30px', minWidth: '900px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', gap: '20px', minHeight: '700px' }}>
-            <h3 style={{ textAlign: 'center', color: '#888', fontSize: '24px', margin: '0 0 20px 0' }}>Čtvrtfinále</h3>
-            {ctvrtfinale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', gap: '40px', minHeight: '700px', padding: '60px 0' }}>
-            <h3 style={{ textAlign: 'center', color: '#888', fontSize: '24px', margin: '0 0 20px 0' }}>Semifinále</h3>
-            {semifinale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '700px' }}>
-            <h3 style={{ textAlign: 'center', color: '#ffc107', fontSize: '28px', margin: '0 0 20px 0' }}>Finále</h3>
-            {finale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}
-          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', gap: '20px', minHeight: '700px' }}><h3 style={{ textAlign: 'center', color: '#888', fontSize: '24px', margin: '0 0 20px 0' }}>Čtvrtfinále</h3>{ctvrtfinale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', gap: '40px', minHeight: '700px', padding: '60px 0' }}><h3 style={{ textAlign: 'center', color: '#888', fontSize: '24px', margin: '0 0 20px 0' }}>Semifinále</h3>{semifinale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '700px' }}><h3 style={{ textAlign: 'center', color: '#ffc107', fontSize: '28px', margin: '0 0 20px 0' }}>Finále</h3>{finale.map(z => <BracketMatchCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} />)}</div>
         </div>
       </div>
     )
@@ -372,7 +382,8 @@ function App() {
       <MatchView 
         score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={history}
         zpetDoMenu={zpetDoMenu} krokZpet={krokZpet} rucniPrepnutiPodani={rucniPrepnutiPodani} spustitLive={spustitLive}
-        ukoncitZapas={ukoncitZapas} pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} tvMode={tvMode} setTvMode={setTvMode} isDivak={isDivak} 
+        ukoncitZapas={ukoncitZapas} pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 
+        znovuOtevritZapas={znovuOtevritZapas} tvMode={tvMode} setTvMode={setTvMode} isDivak={isDivak} 
       />
     )
   }
@@ -396,25 +407,74 @@ function App() {
       </div>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '50px 20px' }}>
-        {!isDivak && <div style={{ marginBottom: '50px', textAlign: 'center' }}><button onClick={vytvoritNovyZapas} style={{ padding: '20px 50px', fontSize: '26px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>➕ Vytvořit nový zápas</button></div>}
+        {!isDivak && <div style={{ marginBottom: '50px', textAlign: 'center' }}><button onClick={otevritNovyZapasModal} style={{ padding: '20px 50px', fontSize: '26px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>➕ Vytvořit nový zápas</button></div>}
+        
         <div style={{ marginBottom: '60px' }}>
           <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', color: '#dc3545', fontSize: '32px' }}>🔴 Právě se hraje (LIVE)</h2>
           {liveZapasy.length === 0 ? <p style={{ color: '#888', fontSize: '22px' }}>Aktuálně se nehraje žádný zápas.</p> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '30px', marginTop: '30px' }}>{liveZapasy.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div>}
         </div>
+        
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
           <button onClick={() => setTypTabulky('klasicka')} style={{ padding: '15px 30px', fontSize: '20px', background: typTabulky === 'klasicka' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'klasicka' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '10px 0 0 10px', cursor: 'pointer', fontWeight: 'bold' }}>Klasická tabulka</button>
           <button onClick={() => setTypTabulky('krizova')} style={{ padding: '15px 30px', fontSize: '20px', background: typTabulky === 'krizova' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: typTabulky === 'krizova' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '0 10px 10px 0', cursor: 'pointer', fontWeight: 'bold' }}>Křížová tabulka</button>
         </div>
+        
         {typTabulky === 'klasicka' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', marginBottom: '60px' }}><div style={{ flex: '1 1 600px' }}><SkupinaTable matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /></div><div style={{ flex: '1 1 600px' }}><SkupinaTable matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', marginBottom: '60px' }}><KrizovaTabulkaComponent matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /><KrizovaTabulkaComponent matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div>
         )}
+        
         <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina A</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyA.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
         <div style={{ marginBottom: '50px' }}><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina B</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyB.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>
+        
         {zapasyOstatni.length > 0 && <div><h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '15px', fontSize: '30px', color: isDivak ? '#fff' : '#000' }}>🏆 Zápasy - Ostatní (Playoff)</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px', marginTop: '30px' }}>{zapasyOstatni.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}</div></div>}
       </div>
 
+      {/* MODAL PRO VÝBĚR HRÁČŮ PŘED ZÁPASEM */}
+      {showNewMatchModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', padding: '40px', borderRadius: '15px', textAlign: 'left', maxWidth: '500px', width: '90%', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <h2 style={{ marginTop: 0, color: '#333', textAlign: 'center', marginBottom: '30px' }}>🎾 Nový zápas ve skupině</h2>
+            
+            <div style={{ marginBottom: '25px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '18px' }}>Vyberte skupinu:</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => { setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); }} style={{ flex: 1, padding: '12px', background: newMatchGroup === 'A' ? '#007bff' : '#e9ecef', color: newMatchGroup === 'A' ? '#fff' : '#333', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>Skupina A</button>
+                <button onClick={() => { setNewMatchGroup('B'); setNewMatchP1(''); setNewMatchP2(''); }} style={{ flex: 1, padding: '12px', background: newMatchGroup === 'B' ? '#007bff' : '#e9ecef', color: newMatchGroup === 'B' ? '#fff' : '#333', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>Skupina B</button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '25px' }}>
+               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '18px' }}>Hráč 1:</label>
+               <select value={newMatchP1} onChange={e => { setNewMatchP1(e.target.value); setNewMatchP2(''); }} style={{ width: '100%', padding: '15px', fontSize: '18px', borderRadius: '8px', border: '2px solid #ccc' }}>
+                  <option value="">-- Vyberte prvního hráče --</option>
+                  {(newMatchGroup === 'A' ? HRACI_SKUPINA_A : HRACI_SKUPINA_B).map(h => <option key={h} value={h}>{h}</option>)}
+               </select>
+            </div>
+
+            <div style={{ marginBottom: '40px' }}>
+               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '18px' }}>Hráč 2 (Soupeř):</label>
+               <select value={newMatchP2} onChange={e => setNewMatchP2(e.target.value)} style={{ width: '100%', padding: '15px', fontSize: '18px', borderRadius: '8px', border: '2px solid #ccc', background: !newMatchP1 ? '#f4f4f4' : '#fff' }} disabled={!newMatchP1}>
+                  <option value="">{newMatchP1 ? '-- Vyberte soupeře --' : 'Nejprve vyberte Hráče 1'}</option>
+                  {/* Vyfiltrujeme hráče 1 a všechny, se kterými už Hráč 1 hrál */}
+                  {newMatchP1 && (newMatchGroup === 'A' ? HRACI_SKUPINA_A : HRACI_SKUPINA_B)
+                    .filter(h => h !== newMatchP1)
+                    .filter(h => !zapasList.some(z => (z.player1_name === newMatchP1 && z.player2_name === h) || (z.player1_name === h && z.player2_name === newMatchP1)))
+                    .map(h => <option key={h} value={h}>{h}</option>)}
+               </select>
+               {newMatchP1 && <p style={{ fontSize: '13px', color: '#666', marginTop: '10px' }}>* V seznamu se zobrazují pouze hráči, se kterými <strong>{newMatchP1}</strong> ještě nehrál.</p>}
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <button onClick={() => setShowNewMatchModal(false)} style={{ flex: 1, padding: '15px', fontSize: '18px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Zrušit</button>
+              <button onClick={spustitNovyZapas} disabled={!newMatchP1 || !newMatchP2} style={{ flex: 1, padding: '15px', fontSize: '18px', background: (!newMatchP1 || !newMatchP2) ? '#80c891' : '#28a745', color: '#fff', border: 'none', borderRadius: '8px', cursor: (!newMatchP1 || !newMatchP2) ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>Vytvořit zápas</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGIN MODAL */}
       {showLogin && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '40px', borderRadius: '15px', textAlign: 'center', maxWidth: '400px', width: '90%' }}>
