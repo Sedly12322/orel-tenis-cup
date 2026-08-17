@@ -23,11 +23,22 @@ function App() {
   const [typTabulky, setTypTabulky] = useState('krizova');
   
   const [score, setScore] = useState(null);
+  const [history, setHistory] = useState([]);
 
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [newMatchGroup, setNewMatchGroup] = useState('A');
   const [newMatchP1, setNewMatchP1] = useState('');
   const [newMatchP2, setNewMatchP2] = useState('');
+
+  // Auto-Boot do TV Kiosku pomocí URL hashtagu (#tv)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#tv') setView('tv_kiosk');
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     const nactiZapasy = async () => {
@@ -49,8 +60,9 @@ function App() {
     return () => { supabase.removeChannel(dbKanal) }
   }, [])
 
+  // Živé stahování skóre pro MatchView i TvKiosk
   useEffect(() => {
-    if (view === 'match' && activeMatchId) {
+    if ((view === 'match' || view === 'tv_kiosk') && activeMatchId) {
       const nactiSkore = async () => {
         const { data } = await supabase.from('matches').select('*').eq('id', activeMatchId).single()
         if (data && data.match_state) setScore(data.match_state)
@@ -65,6 +77,19 @@ function App() {
       return () => { supabase.removeChannel(matchKanal) }
     }
   }, [view, activeMatchId])
+
+  // Automatické přepínání zápasů v režimu TV Kiosk
+  useEffect(() => {
+    if (view === 'tv_kiosk') {
+      const liveMatch = zapasList.find(z => z.status === 'live');
+      if (liveMatch && activeMatchId !== liveMatch.id) {
+        setActiveMatchId(liveMatch.id);
+      } else if (!liveMatch && activeMatchId !== null) {
+        setActiveMatchId(null);
+        setScore(null);
+      }
+    }
+  }, [view, zapasList, activeMatchId]);
 
   const handleLogin = () => {
     if (heslo === 'orel2026') { 
@@ -95,14 +120,14 @@ function App() {
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
       is_tiebreak: false,
       game_log: [[], [], []],
-      _history: [] // Trvalá databázová paměť na historii tahů
+      _history: []
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
   const otevritZapas = (id) => { setActiveMatchId(id); setView('match') }
-  const zpetDoMenu = () => { setActiveMatchId(null); setScore(null); setView('menu') }
+  const zpetDoMenu = () => { setActiveMatchId(null); setScore(null); setView('menu'); window.location.hash = ''; }
 
   const spustitLive = async () => {
     await supabase.from('matches').update({ status: 'live' }).eq('id', activeMatchId);
@@ -237,7 +262,6 @@ function App() {
     const currentHistory = score._history || [];
     if (currentHistory.length === 0) return;
     
-    // Načteme poslední uložený stav a ořízneme ho z historie
     const minulyStav = currentHistory[currentHistory.length - 1];
     const newHistory = currentHistory.slice(0, -1);
     
@@ -255,7 +279,7 @@ function App() {
 
   const rucniPrepnutiPodani = async () => {
     let snapshot = JSON.parse(JSON.stringify(score));
-    delete snapshot._history; // Proti zacyklení
+    delete snapshot._history;
     const novyStav = { ...score, server: score.server === 1 ? 2 : 1, _history: [...(score._history || []), snapshot].slice(-50) };
     setScore(novyStav);
     await supabase.from('matches').update({ match_state: novyStav }).eq('id', activeMatchId);
@@ -268,7 +292,6 @@ function App() {
     let st = JSON.parse(JSON.stringify(score));
     let snapshot = JSON.parse(JSON.stringify(score));
     delete snapshot._history;
-    // Omezujeme paměť na posledních 50 tahů
     st._history = [...(score._history || []), snapshot].slice(-50);
 
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
@@ -346,64 +369,39 @@ function App() {
     setScore(st); await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId)
   }
 
-  const generovatPavouka = async () => {
-    const odehraneZapasy = zapasList.filter(z => z.status === 'finished')
-    const zapasyA = odehraneZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name))
-    const zapasyB = odehraneZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name))
-
-    const { serazeni: tabA } = vypocitejTabulku(zapasyA, HRACI_SKUPINA_A)
-    const { serazeni: tabB } = vypocitejTabulku(zapasyB, HRACI_SKUPINA_B)
-
-    if (tabA.length < 4 || tabB.length < 4) {
-      alert("Ve skupinách ještě nemáme dostatek dohraných zápasů. Z každé skupiny potřebujeme minimálně 4 umístěné hráče.");
-      return;
-    }
-
-    const vychoziStav = (p1, p2) => ({
-      player1_name: p1, player2_name: p2, server: 1,
-      sets_won: { player1: 0, player2: 0 }, completed_sets: [],
-      current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
-      is_tiebreak: false,
-      game_log: [[], [], []],
-      _history: []
-    })
-
-    const qfMatches = [
-      { player1_name: tabA[0].jmeno, player2_name: tabB[3].jmeno, status: 'planned', round: 4, match_state: vychoziStav(tabA[0].jmeno, tabB[3].jmeno) },
-      { player1_name: tabB[1].jmeno, player2_name: tabA[2].jmeno, status: 'planned', round: 4, match_state: vychoziStav(tabB[1].jmeno, tabA[2].jmeno) },
-      { player1_name: tabA[1].jmeno, player2_name: tabB[2].jmeno, status: 'planned', round: 4, match_state: vychoziStav(tabA[1].jmeno, tabB[2].jmeno) },
-      { player1_name: tabB[0].jmeno, player2_name: tabA[3].jmeno, status: 'planned', round: 4, match_state: vychoziStav(tabB[0].jmeno, tabA[3].jmeno) }
-    ];
-
-    const sfMatches = [
-      { player1_name: "Vítěz QF1", player2_name: "Vítěz QF2", status: 'planned', round: 2, match_state: vychoziStav("Vítěz QF1", "Vítěz QF2") },
-      { player1_name: "Vítěz QF3", player2_name: "Vítěz QF4", status: 'planned', round: 2, match_state: vychoziStav("Vítěz QF3", "Vítěz QF4") }
-    ];
-
-    const fMatch = [
-      { player1_name: "Vítěz SF1", player2_name: "Vítěz SF2", status: 'planned', round: 1, match_state: vychoziStav("Vítěz SF1", "Vítěz SF2") }
-    ];
-
-    const existujiciPlayoff = zapasList.filter(z => [1,2,4].includes(z.round));
-    if (existujiciPlayoff.length > 0) {
-      if (!window.confirm("Zápasy Playoff už existují. Opravdu chcete starého pavouka smazat a vygenerovat ho úplně znovu?")) return;
-      for (let z of existujiciPlayoff) await supabase.from('matches').delete().eq('id', z.id);
-    }
-
-    const vsechnyPlayoffZapasy = [...qfMatches, ...sfMatches, ...fMatch];
-    for (const m of vsechnyPlayoffZapasy) await supabase.from('matches').insert([m]);
-    
-    alert("Pavouk byl úspěšně vygenerován!");
-  }
-
-  const smazatPlayoff = async () => {
-    const playoffZapasy = zapasList.filter(z => [1, 2, 4].includes(z.round));
-    if (playoffZapasy.length === 0) return;
-    if (window.confirm("Opravdu chcete TRVALE smazat všechny zápasy Playoff (Čtvrtfinále, Semifinále, Finále)?")) {
-      for (let z of playoffZapasy) await supabase.from('matches').delete().eq('id', z.id);
-      alert("Playoff bylo smazáno.");
+  // --- RENDEROVÁNÍ TV KIOSKU ---
+  if (view === 'tv_kiosk') {
+    if (activeMatchId && score) {
+      return (
+        <MatchView 
+          score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} 
+          history={score._history || []}
+          zpetDoMenu={zpetDoMenu} krokZpet={krokZpet} rucniPrepnutiPodani={rucniPrepnutiPodani} spustitLive={spustitLive}
+          ukoncitZapas={ukoncitZapas} kontumovatZapas={kontumovatZapas} oboustrannaKontumace={oboustrannaKontumace} 
+          pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 
+          znovuOtevritZapas={znovuOtevritZapas} isDivak={true} isKiosk={true}
+        />
+      );
+    } else {
+      return (
+        <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
+          {/* Tlačítko zpět je pro jistotu v rohu poloprůhledné */}
+          <button onClick={() => { setView('menu'); window.location.hash = ''; }} style={{ position: 'absolute', top: '20px', left: '20px', padding: '10px 20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: 0.5 }}>← Menu</button>
+          
+          <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', color: '#28a745', margin: '0 0 20px 0', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
+          <div style={{ width: '100%', maxWidth: '800px', height: '4px', background: '#333', marginBottom: '40px' }}></div>
+          <h2 style={{ fontSize: 'clamp(20px, 4vw, 40px)', color: '#aaa', fontWeight: 'normal' }}>Aktuálně neprobíhá žádný zápas</h2>
+          
+          <div style={{ marginTop: '60px' }}>
+             <div style={{ animation: 'pulse 2s infinite', color: '#555', fontSize: '24px' }}>Čekání na spuštění zápasu...</div>
+          </div>
+          <style>{`@keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }`}</style>
+        </div>
+      );
     }
   }
+
+  // --- ZBYTEK APLIKACE ---
 
   if (view === 'import' && !isDivak) {
     return <ImportData zpetDoMenu={zpetDoMenu} />
@@ -482,6 +480,8 @@ function App() {
       <div style={{ background: isDivak ? '#222' : '#fff', padding: '15px 20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 36px)', color: isDivak ? '#fff' : '#000' }}>🎾 Orel Tenis Cup</h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Nové tlačítko pro spuštění TV Kiosku přímo z menu */}
+          <button onClick={() => { setView('tv_kiosk'); window.location.hash = 'tv'; }} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>📺 TV Kiosk</button>
           {!isDivak && <button onClick={() => setView('import')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#ffc107', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>📥 Import</button>}
           <button onClick={() => setView('bracket')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🏆 Pavouk</button>
           {!isDivak && <button onClick={() => setView('players')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>👥 Hráči</button>}
