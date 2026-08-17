@@ -94,7 +94,8 @@ function App() {
       player1_name: newMatchP1, player2_name: newMatchP2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
-      is_tiebreak: false
+      is_tiebreak: false,
+      game_log: [[], [], []] // Nosič historie vývoje skóre
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
@@ -175,7 +176,6 @@ function App() {
     zpetDoMenu();
   }
 
-  // JEDNOSTRANNÁ KONTUMACE (Výhra 6:0, 6:0)
   const kontumovatZapas = async (vitezId) => {
     const vitezJmeno = vitezId === 1 ? score.player1_name : score.player2_name;
     if (window.confirm(`Opravdu chcete zápas SKREČOVAT ve prospěch hráče: ${vitezJmeno}?\n\nPodle pravidel získá kontumační výhru 6:0, 6:0 a poražený dostane 0 bodů do tabulky.`)) {
@@ -188,6 +188,7 @@ function App() {
       st.current_game = { player1_points: "0", player2_points: "0" };
       st.is_tiebreak = false;
       st.is_default = true;
+      st.game_log = [["KONTUMACE 6:0"], ["KONTUMACE 6:0"], []];
 
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
@@ -196,7 +197,6 @@ function App() {
     }
   }
 
-  // OBOUSTRANNÁ KONTUMACE (0:0 s určením viny)
   const oboustrannaKontumace = async () => {
     const odpoved = window.prompt(
       `❌ Oboustranná kontumace (0:0, 0:0)\nOba hráči získají 0 bodů.\n\nKdo nese vinu za neodehrání (např. nevyzval v termínu)? Tento hráč propadne při bodové shodě v tabulce.\n\nNapište 1 pro: ${score.player1_name}\nNapište 2 pro: ${score.player2_name}\nNechte prázdné, pokud vina není určena.`, 
@@ -215,7 +215,8 @@ function App() {
       st.current_game = { player1_points: "0", player2_points: "0" };
       st.is_tiebreak = false;
       st.is_default = true;
-      st.fault_player = fault_player; // Zapíše viníka
+      st.fault_player = fault_player;
+      st.game_log = [["OBOUSTRANNÁ KONTUMACE 0:0"], ["OBOUSTRANNÁ KONTUMACE 0:0"], []];
 
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
@@ -254,6 +255,7 @@ function App() {
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false
     let matchTbPoints = null; 
+    let tbScore = null;
 
     const isMatchTiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
 
@@ -266,6 +268,7 @@ function App() {
       
       if ((b1 >= targetScore && b1 - b2 >= 2) || (b2 >= targetScore && b2 - b1 >= 2)) { 
         vyhralGem = true; 
+        tbScore = `${b1}:${b2}`;
         
         if (isMatchTiebreak) {
           matchTbPoints = { p1: b1, p2: b2 };
@@ -285,6 +288,19 @@ function App() {
     }
 
     if (vyhralGem) {
+      // --- LOGOVÁNÍ PRŮBĚHU GAMŮ DO ARCHIVU ---
+      if (!st.game_log) st.game_log = [[], [], []];
+      const currentSetIndex = st.completed_sets.length;
+      if (!st.game_log[currentSetIndex]) st.game_log[currentSetIndex] = [];
+
+      if (isMatchTiebreak) {
+        st.game_log[currentSetIndex].push(`Tie-break (${matchTbPoints.p1}:${matchTbPoints.p2})`);
+      } else if (tbScore) {
+        st.game_log[currentSetIndex].push(`${st.current_set.player1_games}:${st.current_set.player2_games} (TB ${tbScore})`);
+      } else {
+        st.game_log[currentSetIndex].push(`${st.current_set.player1_games}:${st.current_set.player2_games}`);
+      }
+
       st.current_game.player1_points = "0"; st.current_game.player2_points = "0";
       
       if (isMatchTiebreak) {
@@ -329,7 +345,8 @@ function App() {
       player1_name: p1, player2_name: p2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
-      is_tiebreak: false
+      is_tiebreak: false,
+      game_log: [[], [], []]
     })
 
     const qfMatches = [

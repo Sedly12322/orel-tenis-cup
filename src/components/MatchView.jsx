@@ -21,7 +21,7 @@ export const MatchView = ({
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [manualniStrany, setManualniStrany] = useState(false);
-  const [skrytOverlay, setSkrytOverlay] = useState(false); // Vlajka pro manuální skrytí okna s vítězem
+  const [skrytOverlay, setSkrytOverlay] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -37,6 +37,11 @@ export const MatchView = ({
     }
   };
 
+  // Tisk / Export do PDF
+  const tiskDoPDF = () => {
+    window.print();
+  };
+
   const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
   const isZapasLocked = aktualniZapas?.status === 'finished';
   const zamknoutJmena = (aktualniZapas?.round !== null && aktualniZapas?.status !== 'planned') || isZapasLocked;
@@ -45,23 +50,17 @@ export const MatchView = ({
   const navodProRozhodciho = generujHlaseni(score, minulyStav);
 
   const dosahlKonce = score?.sets_won?.player1 === 2 || score?.sets_won?.player2 === 2;
-  // Overlay se ukáže pouze pokud zápas dosáhl konce, NENÍ uzamčen v databázi a rozhodčí ho ručně neskryl
   const ukazatKonecnyOverlay = dosahlKonce && !isZapasLocked && !skrytOverlay;
   const vitezName = score?.sets_won?.player1 === 2 ? score.player1_name : score.player2_name;
 
-  // Proměnná pro zablokování přidávání bodů (pokud je zápas zcela ukončen, nebo už bylo dosaženo 2 setů)
   const bodovaniZakazano = isZapasLocked || dosahlKonce;
 
-  // Pokud se rozhodčí vrátí o krok zpět, resetujeme i skrytí overlaye, aby mohl znovu vyskočit
   useEffect(() => {
-    if (!dosahlKonce) {
-      setSkrytOverlay(false);
-    }
+    if (!dosahlKonce) setSkrytOverlay(false);
   }, [dosahlKonce]);
 
   // --- MATEMATIKA PRO PŘEHAZOVÁNÍ STRAN ---
   let currentStartSide = 0; 
-
   if (score?.completed_sets) {
     for (let set of score.completed_sets) {
       const gemyVSetu = set.player1_games + set.player2_games;
@@ -82,6 +81,26 @@ export const MatchView = ({
 
   const automatickyProhozeno = finalSide !== 0;
   const zobrazitProhozene = automatickyProhozeno !== manualniStrany;
+
+  // --- LOGIKA PRO TEXTOVÝ PRŮBĚH HER V PDF ---
+  let prubehText = score.completed_sets?.length > 0 
+    ? score.completed_sets.map(s => `${s.player1_games}:${s.player2_games}`).join(', ') 
+    : '';
+
+  if (!dosahlKonce && (score.current_set?.player1_games > 0 || score.current_set?.player2_games > 0 || score.current_game?.player1_points !== "0" || score.current_game?.player2_points !== "0")) {
+    const p1g = score.current_set?.player1_games || 0;
+    const p2g = score.current_set?.player2_games || 0;
+    const p1p = score.current_game?.player1_points || "0";
+    const p2p = score.current_game?.player2_points || "0";
+    
+    const probihaStr = score.is_tiebreak 
+      ? `(rozehráno: tie-break ${p1p}:${p2p})` 
+      : `(rozehráno: ${p1g}:${p2g}, míče ${p1p}:${p2p})`;
+      
+    prubehText = prubehText ? `${prubehText} ... ${probihaStr}` : probihaStr;
+  }
+  if (!prubehText) prubehText = "Zápas právě začal (0:0)";
+
 
   // ====================================================
   // TRADIČNÍ TENISOVÁ TABULKA (SCOREBOARD)
@@ -202,95 +221,193 @@ export const MatchView = ({
 
   const kartyRozhodci = zobrazitProhozene ? [Hrac2_Rozhodci, Hrac1_Rozhodci] : [Hrac1_Rozhodci, Hrac2_Rozhodci];
 
-
-  // === VYKRESLENÍ: DIVÁK ===
-  if (isDivak) {
-    return (
-      <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'clamp(5px, 1vw, 15px)', boxSizing: 'border-box', zIndex: 50 }}>
-        
-        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', position: 'relative', minHeight: '35px', marginBottom: '5px' }}>
-          <button onClick={zpetDoMenu} style={{ position: 'absolute', left: 0, top: 0, padding: 'clamp(6px, 1vh, 10px) clamp(10px, 2vw, 15px)', fontSize: 'clamp(12px, 1.5vh, 16px)', background: '#333', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
-          <div style={{ position: 'absolute', right: 0, top: 0, zIndex: 10 }}>
-            <button onClick={toggleFullscreen} style={{ padding: 'clamp(6px, 1vh, 10px) clamp(10px, 2vw, 15px)', fontSize: 'clamp(12px, 1.5vh, 16px)', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>
-              {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ flexShrink: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          {dosahlKonce && <h2 style={{ color: '#28a745', fontSize: 'clamp(18px, 3vh, 30px)', margin: '0 0 5px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
-          {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: 'clamp(14px, 2vh, 22px)', margin: '0 0 5px 0' }}>🔥 TIE-BREAK 🔥</h2>}
-          {!dosahlKonce && !score.is_tiebreak && <h1 style={{ color: '#ffeb3b', margin: '0 0 5px 0', fontSize: 'clamp(16px, 2.5vh, 26px)' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>}
-        </div>
-        
-        {/* TELEVIZNÍ SCOREBOARD */}
-        <ScoreboardTable />
-        
-        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: '1600px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
-          {kartyDivak}
-        </div>
-      </div>
-    );
-  }
-
-  // === VYKRESLENÍ: ROZHODČÍ NA TABLETU ===
   return (
-    <div style={{ background: '#f4f7f6', color: '#000', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'clamp(5px, 1vw, 15px)', boxSizing: 'border-box', zIndex: 50 }}>
-      
-      {ukazatKonecnyOverlay && !isDivak && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div style={{ background: '#fff', padding: '40px', borderRadius: '20px', textAlign: 'center', maxWidth: '600px', width: '90%', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
-            <h1 style={{ fontSize: '45px', margin: '0 0 20px 0', color: '#28a745' }}>🏆 Konec zápasu!</h1>
-            <h2 style={{ fontSize: '35px', margin: '0 0 40px 0', color: '#333' }}>Vítěz: <br/>{vitezName}</h2>
-            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={krokZpet} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#ffc107', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>↩ Vzít bod zpět</button>
-              <button onClick={() => setSkrytOverlay(true)} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>✏️ Skrýt a upravit</button>
-              <button onClick={ukoncitZapas} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>✅ Potvrdit a uložit</button>
-            </div>
-          </div>
-        </div>
-      )}
+    <>
+      <style>{`
+        .print-only { display: none; }
+        @media print {
+          .no-print { display: none !important; }
+          .print-only { 
+            display: block !important; 
+            color: black !important; 
+            background: white !important; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            padding: 20px;
+          }
+          body { background: white !important; margin: 0; padding: 0; }
+        }
+      `}</style>
 
-      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'clamp(4px, 1vh, 10px)', flexWrap: 'wrap', gap: '5px' }}>
-        <button onClick={zpetDoMenu} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', background: '#444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>← Zpět do Menu</button>
+      {/* ==================================================== */}
+      {/* TISKOVÝ REPORT (ZÁPIS O UTKÁNÍ) - Pouze v PDF      */}
+      {/* ==================================================== */}
+      <div className="print-only" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <h1 style={{ textAlign: 'center', borderBottom: '3px solid #000', paddingBottom: '15px', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
+        <h2 style={{ textAlign: 'center', margin: '20px 0 40px 0', fontSize: '28px' }}>OFICIÁLNÍ ZÁPIS O UTKÁNÍ</h2>
         
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <button onClick={toggleFullscreen} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
-            {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', fontSize: '20px' }}>
+          <div><strong>Fáze turnaje:</strong> {aktualniZapas?.round ? 'Playoff (Vyřazovací část)' : 'Zápas ve skupině'}</div>
+          <div><strong>Datum:</strong> {new Date().toLocaleString('cs-CZ')}</div>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '22px' }}>
+          <thead>
+            <tr style={{ background: '#eee' }}>
+              <th style={{ border: '2px solid #000', padding: '15px', textAlign: 'left', width: '40%' }}>Hráč</th>
+              <th style={{ border: '2px solid #000', padding: '15px' }}>1. Set</th>
+              <th style={{ border: '2px solid #000', padding: '15px' }}>2. Set</th>
+              <th style={{ border: '2px solid #000', padding: '15px' }}>3. Set</th>
+              <th style={{ border: '2px solid #000', padding: '15px' }}>Sety Celkem</th>
+            </tr>
+          </thead>
+          <tbody style={{ textAlign: 'center' }}>
+            <tr>
+              <td style={{ border: '2px solid #000', padding: '15px', textAlign: 'left', fontWeight: 'bold' }}>{score.player1_name || 'Hráč 1'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[0]?.player1_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[1]?.player1_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[2]?.player1_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px', fontWeight: 'bold', fontSize: '26px' }}>{score.sets_won?.player1 || 0}</td>
+            </tr>
+            <tr>
+              <td style={{ border: '2px solid #000', padding: '15px', textAlign: 'left', fontWeight: 'bold' }}>{score.player2_name || 'Hráč 2'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[0]?.player2_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[1]?.player2_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px' }}>{score.completed_sets[2]?.player2_games ?? '-'}</td>
+              <td style={{ border: '2px solid #000', padding: '15px', fontWeight: 'bold', fontSize: '26px' }}>{score.sets_won?.player2 || 0}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* --- PRŮBĚH ZÁPASU --- */}
+        <div style={{ marginBottom: '30px', fontSize: '20px', textAlign: 'left' }}>
+          <h3 style={{ borderBottom: '2px solid #000', paddingBottom: '5px', marginBottom: '15px' }}>Vývoj skóre (průběh setů)</h3>
           
-          <button onClick={() => setManualniStrany(!manualniStrany)} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
-            ↔ Prohodit strany
-          </button>
+          {score.game_log && score.game_log.map((log, idx) => {
+            const isCurrentSet = (idx === (score.completed_sets?.length || 0));
+            const isPlayingThisSet = isCurrentSet && !dosahlKonce && (score.current_set.player1_games > 0 || score.current_set.player2_games > 0 || score.current_game.player1_points !== "0" || score.current_game.player2_points !== "0");
+            
+            if ((!log || log.length === 0) && !isPlayingThisSet) return null;
 
-          <button onClick={() => !bodovaniZakazano && oboustrannaKontumace()} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#343a40', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1 }}>
-            ❌ Oboustranná kontumace
-          </button>
+            let playingString = "";
+            if (isPlayingThisSet) {
+               const pointsStr = score.is_tiebreak ? `TB ${score.current_game.player1_points}:${score.current_game.player2_points}` : `${score.current_game.player1_points}:${score.current_game.player2_points}`;
+               const delimiter = (log && log.length > 0) ? ' ➔ ' : '';
+               playingString = `${delimiter}rozehráno (${score.current_set.player1_games}:${score.current_set.player2_games}, míče ${pointsStr})`;
+            }
 
-          {isZapasLocked ? (
-            <button onClick={znovuOtevritZapas} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔓 Odemknout</button>
-          ) : (
-            <>
-              <button onClick={krokZpet} disabled={history.length === 0} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: history.length === 0 ? 'not-allowed' : 'pointer', background: history.length === 0 ? '#ccc' : '#e0a800', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>↩ Krok zpět</button>
-              <button onClick={rucniPrepnutiPodani} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1 }}>🔄 Změnit podání</button>
-              {aktualniZapas?.status === 'planned' && <button onClick={spustitLive} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔴 Spustit LIVE</button>}
-              {aktualniZapas?.status === 'live' && <button onClick={ukoncitZapas} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#218838', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>✅ Ukončit</button>}
-            </>
+            return (
+              <div key={idx} style={{ marginBottom: '10px' }}>
+                <strong>{idx + 1}. Set:</strong> {(log || []).join(' ➔ ')}{playingString}
+              </div>
+            );
+          })}
+
+          {(!score.game_log || score.game_log.every(l => !l || l.length === 0)) && score.current_set?.player1_games === 0 && score.current_set?.player2_games === 0 && score.current_game?.player1_points === "0" && score.current_game?.player2_points === "0" && (
+             <div style={{ marginBottom: '10px' }}>Zápas právě začal (0:0)</div>
           )}
         </div>
+
+        {score.is_default && (
+          <div style={{ textAlign: 'center', marginBottom: '30px', color: '#d9534f', fontWeight: 'bold', fontSize: '22px' }}>
+            Zápas byl ukončen skrečí / kontumací.<br/>(Viník pro tabulku: {score.fault_player || 'Neurčen / Jednostranná kontumace'})
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', margin: '40px 0', fontSize: '28px', padding: '20px', border: '3px solid #000' }}>
+          <strong>Vítěz utkání: </strong> 
+          <span style={{ padding: '0 20px', textTransform: 'uppercase' }}>{vitezName || 'Zatím nedohráno'}</span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px', fontSize: '20px' }}>
+          <div style={{ textAlign: 'center', width: '400px' }}>
+            <div style={{ borderBottom: '2px solid #000', marginBottom: '10px', height: '40px' }}></div>
+            <strong>Podpis: Hlavní rozhodčí</strong>
+          </div>
+        </div>
       </div>
 
-      <div style={{ flexShrink: 0, background: '#222', color: '#00ff88', padding: 'min(1vh, 8px)', borderRadius: '8px', fontSize: 'clamp(12px, 2.5vh, 18px)', fontWeight: 'bold', marginBottom: 'clamp(4px, 1vh, 10px)', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', width: '100%', maxWidth: '900px', margin: '0 auto clamp(4px, 1vh, 10px) auto' }}>
-        🎤 Hlášení: <span style={{ color: '#fff' }}>"{navodProRozhodciho}"</span>
-      </div>
+      {/* ==================================================== */}
+      {/* NORMÁLNÍ APLIKACE (Skryta během tisku)                 */}
+      {/* ==================================================== */}
+      <div className="no-print" style={{ background: isDivak ? '#000' : '#f4f7f6', color: isDivak ? 'white' : '#000', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'clamp(5px, 1vw, 15px)', boxSizing: 'border-box', zIndex: 50 }}>
+        
+        {/* TLAČÍTKO V OKNĚ VÍTĚZE */}
+        {ukazatKonecnyOverlay && !isDivak && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+            <div style={{ background: '#fff', padding: '40px', borderRadius: '20px', textAlign: 'center', maxWidth: '700px', width: '90%', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+              <h1 style={{ fontSize: '45px', margin: '0 0 20px 0', color: '#28a745' }}>🏆 Konec zápasu!</h1>
+              <h2 style={{ fontSize: '35px', margin: '0 0 40px 0', color: '#333' }}>Vítěz: <br/>{vitezName}</h2>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={krokZpet} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#ffc107', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>↩ Vzít bod zpět</button>
+                <button onClick={() => setSkrytOverlay(true)} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>✏️ Skrýt a upravit</button>
+                <button onClick={tiskDoPDF} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📄 Uložit Zápis (PDF)</button>
+                <button onClick={ukoncitZapas} style={{ flex: '1 1 auto', padding: '15px 20px', fontSize: '18px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>✅ Potvrdit a uložit</button>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#dc3545', fontSize: 'clamp(16px, 3vh, 32px)', margin: '0 0 clamp(4px, 1vh, 10px) 0' }}>🔥 PROBÍHÁ TIE-BREAK 🔥</h2>}
-      
-      <ScoreboardTable />
-      
-      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: '1200px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
-        {kartyRozhodci}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'clamp(4px, 1vh, 10px)', flexWrap: 'wrap', gap: '5px' }}>
+          <button onClick={zpetDoMenu} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', background: '#444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
+          
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', zIndex: 10 }}>
+            {/* TLAČÍTKO PRO PDF EXPORT */}
+            {!isDivak && (
+              <button onClick={tiskDoPDF} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+                📄 Uložit Zápis (PDF)
+              </button>
+            )}
+
+            <button onClick={toggleFullscreen} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: isFullscreen ? '#ffc107' : '#17a2b8', color: isFullscreen ? '#000' : 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+              {isFullscreen ? '↙ Zrušit Fullscreen' : '↗ Fullscreen'}
+            </button>
+            
+            {!isDivak && (
+              <button onClick={() => setManualniStrany(!manualniStrany)} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+                ↔ Prohodit strany
+              </button>
+            )}
+
+            {!isDivak && !isZapasLocked && (
+              <button onClick={() => !bodovaniZakazano && oboustrannaKontumace()} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#343a40', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1 }}>
+                ❌ Oboustranná kontumace
+              </button>
+            )}
+
+            {!isDivak && isZapasLocked ? (
+              <button onClick={znovuOtevritZapas} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔓 Odemknout</button>
+            ) : (!isDivak && (
+              <>
+                <button onClick={krokZpet} disabled={history.length === 0} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: history.length === 0 ? 'not-allowed' : 'pointer', background: history.length === 0 ? '#ccc' : '#e0a800', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>↩ Krok zpět</button>
+                <button onClick={rucniPrepnutiPodani} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1 }}>🔄 Změnit podání</button>
+                {aktualniZapas?.status === 'planned' && <button onClick={spustitLive} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🔴 Spustit LIVE</button>}
+                {aktualniZapas?.status === 'live' && <button onClick={ukoncitZapas} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#218838', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>✅ Ukončit</button>}
+              </>
+            ))}
+          </div>
+        </div>
+
+        {!isDivak && (
+          <div style={{ flexShrink: 0, background: '#222', color: '#00ff88', padding: 'min(1vh, 8px)', borderRadius: '8px', fontSize: 'clamp(12px, 2.5vh, 18px)', fontWeight: 'bold', marginBottom: 'clamp(4px, 1vh, 10px)', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', width: '100%', maxWidth: '900px', margin: '0 auto clamp(4px, 1vh, 10px) auto' }}>
+            🎤 Hlášení: <span style={{ color: '#fff' }}>"{navodProRozhodciho}"</span>
+          </div>
+        )}
+
+        <div style={{ flexShrink: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {dosahlKonce && isDivak && <h2 style={{ color: '#28a745', fontSize: 'clamp(18px, 3vh, 30px)', margin: '0 0 5px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
+          {score.is_tiebreak && !dosahlKonce && <h2 style={{ color: '#ff4444', fontSize: 'clamp(14px, 2vh, 22px)', margin: '0 0 5px 0' }}>🔥 TIE-BREAK 🔥</h2>}
+          {!dosahlKonce && !score.is_tiebreak && isDivak && <h1 style={{ color: '#ffeb3b', margin: '0 0 5px 0', fontSize: 'clamp(16px, 2.5vh, 26px)' }}>{aktualniZapas?.status === 'live' ? '🔴 ŽIVĚ' : 'ZÁPAS'}</h1>}
+        </div>
+        
+        <ScoreboardTable />
+        
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: isDivak ? '1600px' : '1200px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
+          {isDivak ? kartyDivak : kartyRozhodci}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
