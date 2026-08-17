@@ -175,6 +175,55 @@ function App() {
     zpetDoMenu();
   }
 
+  // JEDNOSTRANNÁ KONTUMACE (Výhra 6:0, 6:0)
+  const kontumovatZapas = async (vitezId) => {
+    const vitezJmeno = vitezId === 1 ? score.player1_name : score.player2_name;
+    if (window.confirm(`Opravdu chcete zápas SKREČOVAT ve prospěch hráče: ${vitezJmeno}?\n\nPodle pravidel získá kontumační výhru 6:0, 6:0 a poražený dostane 0 bodů do tabulky.`)) {
+      let st = JSON.parse(JSON.stringify(score));
+      st.sets_won = vitezId === 1 ? { player1: 2, player2: 0 } : { player1: 0, player2: 2 };
+      st.completed_sets = vitezId === 1
+        ? [{ player1_games: 6, player2_games: 0 }, { player1_games: 6, player2_games: 0 }]
+        : [{ player1_games: 0, player2_games: 6 }, { player1_games: 0, player2_games: 6 }];
+      st.current_set = { player1_games: 0, player2_games: 0 };
+      st.current_game = { player1_points: "0", player2_points: "0" };
+      st.is_tiebreak = false;
+      st.is_default = true;
+
+      setScore(st);
+      await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
+      await posunoutVitezeVPlayoff();
+      zpetDoMenu();
+    }
+  }
+
+  // OBOUSTRANNÁ KONTUMACE (0:0 s určením viny)
+  const oboustrannaKontumace = async () => {
+    const odpoved = window.prompt(
+      `❌ Oboustranná kontumace (0:0, 0:0)\nOba hráči získají 0 bodů.\n\nKdo nese vinu za neodehrání (např. nevyzval v termínu)? Tento hráč propadne při bodové shodě v tabulce.\n\nNapište 1 pro: ${score.player1_name}\nNapište 2 pro: ${score.player2_name}\nNechte prázdné, pokud vina není určena.`, 
+      ""
+    );
+    
+    if (odpoved !== null) {
+      let fault_player = null;
+      if (odpoved.trim() === "1") fault_player = score.player1_name;
+      else if (odpoved.trim() === "2") fault_player = score.player2_name;
+
+      let st = JSON.parse(JSON.stringify(score));
+      st.sets_won = { player1: 0, player2: 0 };
+      st.completed_sets = [{ player1_games: 0, player2_games: 0 }, { player1_games: 0, player2_games: 0 }];
+      st.current_set = { player1_games: 0, player2_games: 0 };
+      st.current_game = { player1_points: "0", player2_points: "0" };
+      st.is_tiebreak = false;
+      st.is_default = true;
+      st.fault_player = fault_player; // Zapíše viníka
+
+      setScore(st);
+      await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
+      await posunoutVitezeVPlayoff();
+      zpetDoMenu();
+    }
+  }
+
   const krokZpet = async () => {
     if (history.length === 0) return
     const minulyStav = history[history.length - 1]
@@ -378,7 +427,8 @@ function App() {
       <MatchView 
         score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={history}
         zpetDoMenu={zpetDoMenu} krokZpet={krokZpet} rucniPrepnutiPodani={rucniPrepnutiPodani} spustitLive={spustitLive}
-        ukoncitZapas={ukoncitZapas} pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 
+        ukoncitZapas={ukoncitZapas} kontumovatZapas={kontumovatZapas} oboustrannaKontumace={oboustrannaKontumace} 
+        pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 
         znovuOtevritZapas={znovuOtevritZapas} isDivak={isDivak} 
       />
     )
