@@ -30,7 +30,6 @@ function App() {
   const [newMatchP1, setNewMatchP1] = useState('');
   const [newMatchP2, setNewMatchP2] = useState('');
 
-  // Auto-Boot do TV Kiosku pomocí URL hashtagu (#tv)
   useEffect(() => {
     const handleHashChange = () => {
       if (window.location.hash === '#tv') setView('tv_kiosk');
@@ -60,7 +59,6 @@ function App() {
     return () => { supabase.removeChannel(dbKanal) }
   }, [])
 
-  // Živé stahování skóre pro MatchView i TvKiosk
   useEffect(() => {
     if ((view === 'match' || view === 'tv_kiosk') && activeMatchId) {
       const nactiSkore = async () => {
@@ -78,7 +76,6 @@ function App() {
     }
   }, [view, activeMatchId])
 
-  // Automatické přepínání zápasů v režimu TV Kiosk
   useEffect(() => {
     if (view === 'tv_kiosk') {
       const liveMatch = zapasList.find(z => z.status === 'live');
@@ -120,7 +117,8 @@ function App() {
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
       is_tiebreak: false,
       game_log: [[], [], []],
-      _history: []
+      _history: [],
+      hawk_eye_timestamp: null // Nosič signálu pro animaci Jestřábího oka
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
@@ -285,7 +283,8 @@ function App() {
     await supabase.from('matches').update({ match_state: novyStav }).eq('id', activeMatchId);
   }
 
-  const pridatBod = async (hrac) => {
+  // Změna: přidali jsme parametr isHawkEye, který zachytí, jestli byl bod udělen po autu (Jestřábím oku)
+  const pridatBod = async (hrac, isHawkEye = false) => {
     const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
     const isPlayoff = aktualniZapas?.round !== null;
 
@@ -293,6 +292,11 @@ function App() {
     let snapshot = JSON.parse(JSON.stringify(score));
     delete snapshot._history;
     st._history = [...(score._history || []), snapshot].slice(-50);
+
+    // Pokud to bylo Jestřábí oko, odpálíme Timestamp signál pro televizi
+    if (isHawkEye) {
+      st.hawk_eye_timestamp = Date.now();
+    }
 
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false
@@ -385,7 +389,6 @@ function App() {
     } else {
       return (
         <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
-          {/* Tlačítko zpět je pro jistotu v rohu poloprůhledné */}
           <button onClick={() => { setView('menu'); window.location.hash = ''; }} style={{ position: 'absolute', top: '20px', left: '20px', padding: '10px 20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: 0.5 }}>← Menu</button>
           
           <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', color: '#28a745', margin: '0 0 20px 0', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
@@ -480,7 +483,6 @@ function App() {
       <div style={{ background: isDivak ? '#222' : '#fff', padding: '15px 20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 36px)', color: isDivak ? '#fff' : '#000' }}>🎾 Orel Tenis Cup</h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Nové tlačítko pro spuštění TV Kiosku přímo z menu */}
           <button onClick={() => { setView('tv_kiosk'); window.location.hash = 'tv'; }} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>📺 TV Kiosk</button>
           {!isDivak && <button onClick={() => setView('import')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#ffc107', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>📥 Import</button>}
           <button onClick={() => setView('bracket')} style={{ padding: '10px 15px', fontSize: 'clamp(14px, 2vw, 18px)', cursor: 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>🏆 Pavouk</button>

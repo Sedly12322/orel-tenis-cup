@@ -1,6 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import { generujHlaseni } from '../utils/gameLogic';
 
+// ====================================================
+// KOMPONENTA PRO JESTŘÁBÍ OKO (CSS ANIMACE)
+// ====================================================
+const HawkEyeAnimation = ({ onClose }) => (
+  <div onClick={onClose} className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 999999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
+    <h1 style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 50px)', textTransform: 'uppercase', letterSpacing: '5px', animation: 'fadeInOut 4.5s linear', margin: '0 0 40px 0', textAlign: 'center' }}>Hawk-Eye Challenge</h1>
+    
+    {/* 3D Kurt */}
+    <div style={{ position: 'relative', width: 'clamp(200px, 40vw, 400px)', height: 'clamp(300px, 60vh, 500px)', border: '2px solid rgba(255,255,255,0.3)', background: '#115278', transform: 'perspective(600px) rotateX(50deg)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+       
+       {/* Hlavní čára (kurt) */}
+       <div style={{ position: 'absolute', top: 0, bottom: 0, right: '20%', width: '8px', background: '#fff', boxShadow: '0 0 10px rgba(255,255,255,0.5)' }}></div>
+       
+       {/* Stopa po míčku (značka) - kousek VEDLE čáry vpravo (OUT) */}
+       <div style={{ position: 'absolute', top: '45%', right: '5%', width: '12%', height: '10%', background: 'rgba(0,0,0,0.3)', borderRadius: '50%', opacity: 0, animation: 'markAppear 4.5s linear forwards', transform: 'rotate(20deg)' }}></div>
+       
+       {/* Letící míček */}
+       <div style={{ position: 'absolute', width: '30px', height: '30px', background: '#eaff00', borderRadius: '50%', boxShadow: 'inset -5px -5px 10px rgba(0,0,0,0.4), 0 0 10px #eaff00', animation: 'ballFly 4.5s linear forwards', zIndex: 10 }}></div>
+    </div>
+
+    {/* Nápis OUT */}
+    <div style={{ position: 'absolute', bottom: '15%', fontSize: 'clamp(80px, 15vw, 200px)', fontWeight: '900', color: '#ff3333', opacity: 0, animation: 'outText 4.5s linear forwards', textShadow: '0 0 30px #ff3333', letterSpacing: '10px' }}>OUT</div>
+    
+    <style>{`
+      @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+      @keyframes ballFly { 
+        0% { top: -20%; left: -20%; transform: scale(4) translateZ(200px); opacity: 0; } 
+        10% { opacity: 1; }
+        45% { top: 46%; left: 83%; transform: scale(1) translateZ(0); } /* Dotek země u stopy */
+        60% { top: 120%; left: 120%; transform: scale(2) translateZ(100px); opacity: 1; }
+        80% { opacity: 0; }
+        100% { opacity: 0; top: 120%; left: 120%; }
+      }
+      @keyframes markAppear {
+        0% { opacity: 0; }
+        44% { opacity: 0; }
+        45% { opacity: 1; }
+        100% { opacity: 1; }
+      }
+      @keyframes outText {
+        0% { opacity: 0; transform: scale(0.5); }
+        55% { opacity: 0; transform: scale(0.5); }
+        60% { opacity: 1; transform: scale(1.2); }
+        65% { transform: scale(1); }
+        90% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    `}</style>
+  </div>
+);
+
+// ====================================================
+// HLAVNÍ KOMPONENTA ZÁPASU
+// ====================================================
 export const MatchView = ({
   score,
   activeMatchId,
@@ -18,11 +72,15 @@ export const MatchView = ({
   zmenitJmenoHrace,
   znovuOtevritZapas,
   isDivak,
-  isKiosk // Nový prop speciálně pro schování UI prvků u televize
+  isKiosk
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [manualniStrany, setManualniStrany] = useState(false);
   const [skrytOverlay, setSkrytOverlay] = useState(false);
+  
+  // State pro Jestřábí oko
+  const [showHawkEye, setShowHawkEye] = useState(false);
+  const [lastHawkEye, setLastHawkEye] = useState(null);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -55,6 +113,18 @@ export const MatchView = ({
 
   const bodovaniZakazano = isZapasLocked || dosahlKonce;
 
+  // Odchytávání signálu pro Jestřábí oko (z cloudu)
+  useEffect(() => {
+    if (score?.hawk_eye_timestamp && score.hawk_eye_timestamp !== lastHawkEye) {
+      setLastHawkEye(score.hawk_eye_timestamp);
+      // Přehraje se jen, pokud je signál "čerstvý" (max 10 vteřin starý)
+      if (Date.now() - score.hawk_eye_timestamp < 10000) {
+        setShowHawkEye(true);
+        setTimeout(() => setShowHawkEye(false), 4500); // Skryje se po 4.5s
+      }
+    }
+  }, [score?.hawk_eye_timestamp, lastHawkEye]);
+
   useEffect(() => {
     if (!dosahlKonce) setSkrytOverlay(false);
   }, [dosahlKonce]);
@@ -81,7 +151,6 @@ export const MatchView = ({
   const automatickyProhozeno = finalSide !== 0;
   const zobrazitProhozene = automatickyProhozeno !== manualniStrany;
 
-  // --- LOGIKA PRO TEXTOVÝ PRŮBĚH HER V PDF ---
   let prubehText = score.completed_sets?.length > 0 
     ? score.completed_sets.map(s => `${s.player1_games}:${s.player2_games}`).join(', ') 
     : '';
@@ -100,9 +169,6 @@ export const MatchView = ({
   }
   if (!prubehText) prubehText = "Zápas právě začal (0:0)";
 
-  // ====================================================
-  // TRADIČNÍ TENISOVÁ TABULKA (SCOREBOARD)
-  // ====================================================
   const ScoreboardTable = () => (
     <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '12px', padding: 'clamp(5px, 1vh, 15px)', color: '#fff', width: '100%', maxWidth: '1000px', margin: '0 auto clamp(5px, 1.5vh, 15px) auto', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', flexShrink: 0, overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 'clamp(14px, 2.2vh, 24px)', whiteSpace: 'nowrap' }}>
@@ -147,9 +213,6 @@ export const MatchView = ({
     </div>
   );
 
-  // ====================================================
-  // ČISTÉ KARTY DIVÁKA (Jen jméno a Míče)
-  // ====================================================
   const Hrac1_Divak = (
     <div key="h1_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
       <h2 style={{ fontSize: 'clamp(20px, 4vh, 50px)', margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{score.player1_name || "Hráč 1"}</h2>
@@ -170,9 +233,6 @@ export const MatchView = ({
 
   const kartyDivak = [Hrac1_Divak, Hrac2_Divak];
 
-  // ====================================================
-  // ČISTÉ KARTY ROZHODČÍHO (Jen ovládání)
-  // ====================================================
   const Hrac1_Rozhodci = (
     <div key="h1_r" style={{ flex: '1 1 200px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #28a745' : 'clamp(3px, 0.5vw, 6px) solid #ddd', padding: 'clamp(8px, 1.5vh, 15px)', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
       {zamknoutJmena ? (
@@ -189,7 +249,15 @@ export const MatchView = ({
          <span style={{ fontSize: 'clamp(80px, 20vh, 200px)', fontWeight: '900', lineHeight: '0.85', color: '#000' }}>{score.current_game.player1_points}</span>
       </div>
       
-      <button onClick={() => !bodovaniZakazano && pridatBod(1)} disabled={bodovaniZakazano} style={{ padding: 'clamp(10px, 2.5vh, 30px) 10px', fontSize: 'clamp(24px, 5vh, 50px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(0,123,255,0.4)', opacity: bodovaniZakazano ? 0.5 : 1, marginTop: 'clamp(4px, 1vh, 10px)', flexShrink: 0 }}>+ BOD</button>
+      <div style={{ display: 'flex', gap: '8px', marginTop: 'clamp(4px, 1vh, 10px)', flexShrink: 0 }}>
+        <button onClick={() => !bodovaniZakazano && pridatBod(1)} disabled={bodovaniZakazano} style={{ flex: 4, padding: 'clamp(10px, 2.5vh, 30px) 10px', fontSize: 'clamp(24px, 5vh, 50px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#007bff', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '900', boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(0,123,255,0.4)', opacity: bodovaniZakazano ? 0.5 : 1 }}>+ BOD</button>
+        
+        {/* TLAČÍTKO PRO JESTŘÁBÍ OKO */}
+        <button onClick={() => !bodovaniZakazano && pridatBod(1, true)} disabled={bodovaniZakazano} style={{ flex: 1, minWidth: '70px', padding: '5px', fontSize: 'clamp(12px, 1.8vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: bodovaniZakazano ? 0.5 : 1, boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(23,162,184,0.4)' }} title="Přidat bod a spustit Jestřábí oko">
+          <span style={{ fontSize: 'clamp(20px, 3vh, 30px)' }}>🦅</span>
+          <span style={{ marginTop: '-2px' }}>OUT</span>
+        </button>
+      </div>
       
       <button onClick={() => !bodovaniZakazano && kontumovatZapas(1)} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1vh, 12px)', fontSize: 'clamp(12px, 1.8vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', width: '100%', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1, marginTop: 'clamp(4px, 1vh, 8px)', flexShrink: 0 }}>🚩 Výhra kontumačně</button>
     </div>
@@ -211,7 +279,15 @@ export const MatchView = ({
          <span style={{ fontSize: 'clamp(80px, 20vh, 200px)', fontWeight: '900', lineHeight: '0.85', color: '#000' }}>{score.current_game.player2_points}</span>
       </div>
       
-      <button onClick={() => !bodovaniZakazano && pridatBod(2)} disabled={bodovaniZakazano} style={{ padding: 'clamp(10px, 2.5vh, 30px) 10px', fontSize: 'clamp(24px, 5vh, 50px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '12px', width: '100%', fontWeight: '900', boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(40,167,69,0.4)', opacity: bodovaniZakazano ? 0.5 : 1, marginTop: 'clamp(4px, 1vh, 10px)', flexShrink: 0 }}>+ BOD</button>
+      <div style={{ display: 'flex', gap: '8px', marginTop: 'clamp(4px, 1vh, 10px)', flexShrink: 0 }}>
+        <button onClick={() => !bodovaniZakazano && pridatBod(2)} disabled={bodovaniZakazano} style={{ flex: 4, padding: 'clamp(10px, 2.5vh, 30px) 10px', fontSize: 'clamp(24px, 5vh, 50px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '900', boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(40,167,69,0.4)', opacity: bodovaniZakazano ? 0.5 : 1 }}>+ BOD</button>
+        
+        {/* TLAČÍTKO PRO JESTŘÁBÍ OKO */}
+        <button onClick={() => !bodovaniZakazano && pridatBod(2, true)} disabled={bodovaniZakazano} style={{ flex: 1, minWidth: '70px', padding: '5px', fontSize: 'clamp(12px, 1.8vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: bodovaniZakazano ? 0.5 : 1, boxShadow: bodovaniZakazano ? 'none' : '0 4px 10px rgba(23,162,184,0.4)' }} title="Přidat bod a spustit Jestřábí oko">
+          <span style={{ fontSize: 'clamp(20px, 3vh, 30px)' }}>🦅</span>
+          <span style={{ marginTop: '-2px' }}>OUT</span>
+        </button>
+      </div>
       
       <button onClick={() => !bodovaniZakazano && kontumovatZapas(2)} disabled={bodovaniZakazano} style={{ padding: 'clamp(6px, 1vh, 12px)', fontSize: 'clamp(12px, 1.8vh, 16px)', cursor: bodovaniZakazano ? 'not-allowed' : 'pointer', background: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', width: '100%', fontWeight: 'bold', opacity: bodovaniZakazano ? 0.5 : 1, marginTop: 'clamp(4px, 1vh, 8px)', flexShrink: 0 }}>🚩 Výhra kontumačně</button>
     </div>
@@ -238,6 +314,9 @@ export const MatchView = ({
           body { background: white !important; margin: 0; padding: 0; }
         }
       `}</style>
+
+      {/* JESTŘÁBÍ OKO (Přehrává se na celou obrazovku při kliknutí na 🦅 OUT) */}
+      {showHawkEye && <HawkEyeAnimation onClose={() => setShowHawkEye(false)} />}
 
       {/* ==================================================== */}
       {/* TISKOVÝ REPORT (ZÁPIS O UTKÁNÍ) - Pouze v PDF      */}
