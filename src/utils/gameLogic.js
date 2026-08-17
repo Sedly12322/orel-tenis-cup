@@ -38,7 +38,7 @@ export const vypocitejTabulku = (matches, hraciList) => {
       const s1 = m.match_state.sets_won.player1 || 0;
       const s2 = m.match_state.sets_won.player2 || 0;
       const isDefault = m.match_state.is_default === true; 
-      const faultPlayer = m.match_state.fault_player || null; // Viník kontumace
+      const faultPlayer = m.match_state.fault_player || null;
 
       staty[p1].z += 1;
       staty[p2].z += 1;
@@ -58,7 +58,7 @@ export const vypocitejTabulku = (matches, hraciList) => {
       // --- LOGIKA BODOVÁNÍ OREL TENIS CUP ---
       if (s1 === 2 && s2 === 0) {
         staty[p1].body += 4;
-        staty[p2].body += isDefault ? 0 : 1; // Za kontumaci se 1 bod neuděluje
+        staty[p2].body += isDefault ? 0 : 1; 
       } else if (s2 === 2 && s1 === 0) {
         staty[p2].body += 4;
         staty[p1].body += isDefault ? 0 : 1;
@@ -86,8 +86,9 @@ export const vypocitejTabulku = (matches, hraciList) => {
         });
       }
 
-      staty[p1].zapasy.push({ souper: p2, s1, s2, g1, g2, isDefault, fault: faultPlayer });
-      staty[p2].zapasy.push({ souper: p1, s1: s2, s2: s1, g1: g2, g2: g1, isDefault, fault: faultPlayer });
+      // isHome identifikuje Domácího hráče (p1) kvůli určení viny
+      staty[p1].zapasy.push({ souper: p2, s1, s2, g1, g2, isDefault, fault: faultPlayer, isHome: true });
+      staty[p2].zapasy.push({ souper: p1, s1: s2, s2: s1, g1: g2, g2: g1, isDefault, fault: faultPlayer, isHome: false });
     }
   });
 
@@ -126,12 +127,20 @@ export const vypocitejTabulku = (matches, hraciList) => {
     if (tiedPlayers.length === 2) {
       const h2hMatchA = a.zapasy.find(z => z.souper === b.jmeno);
       if (h2hMatchA) {
-        if (h2hMatchA.s1 > h2hMatchA.s2) return -1;
-        if (h2hMatchA.s1 < h2hMatchA.s2) return 1;
+        if (h2hMatchA.s1 > h2hMatchA.s2) return -1; // A vyhrál
+        if (h2hMatchA.s1 < h2hMatchA.s2) return 1;  // B vyhrál
         
-        // --- Řešení oboustranné kontumace (0:0) s viníkem ---
-        if (h2hMatchA.fault === a.jmeno) return 1; // A má vinu, klesá v tabulce
-        if (h2hMatchA.fault === b.jmeno) return -1; // B má vinu, A stoupá v tabulce
+        // --- Řešení kontumace 0:0 s viníkem ---
+        if (h2hMatchA.s1 === 0 && h2hMatchA.s2 === 0) {
+          if (h2hMatchA.fault === a.jmeno) return 1;
+          if (h2hMatchA.fault === b.jmeno) return -1;
+          
+          if (h2hMatchA.isDefault) {
+             // Podle pravidel: Domácí hráč zodpovídal za odehrání. Při oboustranné 0:0 je on viníkem a padá pod soupeře.
+             if (h2hMatchA.isHome) return 1; // A byl domácí (Player 1), takže klesá v tabulce dolů
+             else return -1; // B byl domácí, takže A stoupá nahoru
+          }
+        }
       }
       const diffA = a.gamesW - a.gamesL;
       const diffB = b.gamesW - b.gamesL;

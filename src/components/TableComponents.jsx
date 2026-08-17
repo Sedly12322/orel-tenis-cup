@@ -12,10 +12,18 @@ export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev, isDivak }) 
   const getScoreText = (radkovyHrac, sloupcovyHrac) => {
     const match = matches.find(m => m.status === 'finished' && ((m.player1_name === radkovyHrac && m.player2_name === sloupcovyHrac) || (m.player1_name === sloupcovyHrac && m.player2_name === radkovyHrac)));
     if (!match || !match.match_state || !match.match_state.completed_sets) return "";
-    return match.match_state.completed_sets.map(set => {
-      if (match.player1_name === radkovyHrac) return `${set.player1_games}-${set.player2_games}`;
-      else return `${set.player2_games}-${set.player1_games}`;
+    
+    let text = match.match_state.completed_sets.map(set => {
+      if (match.player1_name === radkovyHrac) return `${set.player1_games}:${set.player2_games}`;
+      else return `${set.player2_games}:${set.player1_games}`;
     }).join(', ');
+
+    // Přidání písmena (K) jako označení kontumace, přesně jako ve vašem Excelu
+    if (match.match_state.is_default) {
+        text += " (K)";
+    }
+    
+    return text;
   }
 
   return (
