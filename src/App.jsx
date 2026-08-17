@@ -23,7 +23,6 @@ function App() {
   const [typTabulky, setTypTabulky] = useState('krizova');
   
   const [score, setScore] = useState(null);
-  const [history, setHistory] = useState([]);
 
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [newMatchGroup, setNewMatchGroup] = useState('A');
@@ -95,13 +94,14 @@ function App() {
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
       is_tiebreak: false,
-      game_log: [[], [], []] // Nosič historie vývoje skóre
+      game_log: [[], [], []],
+      _history: [] // Trvalá databázová paměť na historii tahů
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
-  const otevritZapas = (id) => { setActiveMatchId(id); setHistory([]); setView('match') }
+  const otevritZapas = (id) => { setActiveMatchId(id); setView('match') }
   const zpetDoMenu = () => { setActiveMatchId(null); setScore(null); setView('menu') }
 
   const spustitLive = async () => {
@@ -180,6 +180,10 @@ function App() {
     const vitezJmeno = vitezId === 1 ? score.player1_name : score.player2_name;
     if (window.confirm(`Opravdu chcete zápas SKREČOVAT ve prospěch hráče: ${vitezJmeno}?\n\nPodle pravidel získá kontumační výhru 6:0, 6:0 a poražený dostane 0 bodů do tabulky.`)) {
       let st = JSON.parse(JSON.stringify(score));
+      let snapshot = JSON.parse(JSON.stringify(score));
+      delete snapshot._history;
+      st._history = [...(score._history || []), snapshot].slice(-50);
+
       st.sets_won = vitezId === 1 ? { player1: 2, player2: 0 } : { player1: 0, player2: 2 };
       st.completed_sets = vitezId === 1
         ? [{ player1_games: 6, player2_games: 0 }, { player1_games: 6, player2_games: 0 }]
@@ -209,6 +213,10 @@ function App() {
       else if (odpoved.trim() === "2") fault_player = score.player2_name;
 
       let st = JSON.parse(JSON.stringify(score));
+      let snapshot = JSON.parse(JSON.stringify(score));
+      delete snapshot._history;
+      st._history = [...(score._history || []), snapshot].slice(-50);
+
       st.sets_won = { player1: 0, player2: 0 };
       st.completed_sets = [{ player1_games: 0, player2_games: 0 }, { player1_games: 0, player2_games: 0 }];
       st.current_set = { player1_games: 0, player2_games: 0 };
@@ -226,11 +234,17 @@ function App() {
   }
 
   const krokZpet = async () => {
-    if (history.length === 0) return
-    const minulyStav = history[history.length - 1]
-    setHistory(prev => prev.slice(0, -1))
-    setScore(minulyStav)
-    await supabase.from('matches').update({ match_state: minulyStav }).eq('id', activeMatchId)
+    const currentHistory = score._history || [];
+    if (currentHistory.length === 0) return;
+    
+    // Načteme poslední uložený stav a ořízneme ho z historie
+    const minulyStav = currentHistory[currentHistory.length - 1];
+    const newHistory = currentHistory.slice(0, -1);
+    
+    let st = { ...minulyStav, _history: newHistory };
+    
+    setScore(st);
+    await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId);
   }
 
   const zmenitJmenoHrace = async (hracKlic, noveJmeno) => {
@@ -240,18 +254,23 @@ function App() {
   }
 
   const rucniPrepnutiPodani = async () => {
-    setHistory(prev => [...prev, JSON.parse(JSON.stringify(score))])
-    const novyStav = { ...score, server: score.server === 1 ? 2 : 1 }
-    setScore(novyStav)
-    await supabase.from('matches').update({ match_state: novyStav }).eq('id', activeMatchId)
+    let snapshot = JSON.parse(JSON.stringify(score));
+    delete snapshot._history; // Proti zacyklení
+    const novyStav = { ...score, server: score.server === 1 ? 2 : 1, _history: [...(score._history || []), snapshot].slice(-50) };
+    setScore(novyStav);
+    await supabase.from('matches').update({ match_state: novyStav }).eq('id', activeMatchId);
   }
 
   const pridatBod = async (hrac) => {
     const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
     const isPlayoff = aktualniZapas?.round !== null;
 
-    setHistory(prev => [...prev, JSON.parse(JSON.stringify(score))])
-    let st = JSON.parse(JSON.stringify(score))
+    let st = JSON.parse(JSON.stringify(score));
+    let snapshot = JSON.parse(JSON.stringify(score));
+    delete snapshot._history;
+    // Omezujeme paměť na posledních 50 tahů
+    st._history = [...(score._history || []), snapshot].slice(-50);
+
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false
     let matchTbPoints = null; 
@@ -288,7 +307,6 @@ function App() {
     }
 
     if (vyhralGem) {
-      // --- LOGOVÁNÍ PRŮBĚHU GAMŮ DO ARCHIVU ---
       if (!st.game_log) st.game_log = [[], [], []];
       const currentSetIndex = st.completed_sets.length;
       if (!st.game_log[currentSetIndex]) st.game_log[currentSetIndex] = [];
@@ -298,7 +316,7 @@ function App() {
       } else if (tbScore) {
         st.game_log[currentSetIndex].push(`${st.current_set.player1_games}:${st.current_set.player2_games} (TB ${tbScore})`);
       } else {
-        st.game_log[currentSetIndex].push(`${st.current_set.player1_games}:${st.current_set.player2_games}`);
+        st.game_log[currentSetIndex].push(`${st.current_set.player1_games}:${st.current_set.player2_games} (${st.current_game.player1_points}:${st.current_game.player2_points})`);
       }
 
       st.current_game.player1_points = "0"; st.current_game.player2_points = "0";
@@ -346,7 +364,8 @@ function App() {
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
       is_tiebreak: false,
-      game_log: [[], [], []]
+      game_log: [[], [], []],
+      _history: []
     })
 
     const qfMatches = [
@@ -442,7 +461,8 @@ function App() {
   if (view === 'match' && activeMatchId && score) {
     return (
       <MatchView 
-        score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={history}
+        score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} 
+        history={score._history || []}
         zpetDoMenu={zpetDoMenu} krokZpet={krokZpet} rucniPrepnutiPodani={rucniPrepnutiPodani} spustitLive={spustitLive}
         ukoncitZapas={ukoncitZapas} kontumovatZapas={kontumovatZapas} oboustrannaKontumace={oboustrannaKontumace} 
         pridatBod={pridatBod} zmenitJmenoHrace={zmenitJmenoHrace} 

@@ -37,7 +37,6 @@ export const MatchView = ({
     }
   };
 
-  // Tisk / Export do PDF
   const tiskDoPDF = () => {
     window.print();
   };
@@ -59,7 +58,6 @@ export const MatchView = ({
     if (!dosahlKonce) setSkrytOverlay(false);
   }, [dosahlKonce]);
 
-  // --- MATEMATIKA PRO PŘEHAZOVÁNÍ STRAN ---
   let currentStartSide = 0; 
   if (score?.completed_sets) {
     for (let set of score.completed_sets) {
@@ -100,7 +98,6 @@ export const MatchView = ({
     prubehText = prubehText ? `${prubehText} ... ${probihaStr}` : probihaStr;
   }
   if (!prubehText) prubehText = "Zápas právě začal (0:0)";
-
 
   // ====================================================
   // TRADIČNÍ TENISOVÁ TABULKA (SCOREBOARD)
@@ -281,9 +278,10 @@ export const MatchView = ({
           </tbody>
         </table>
 
-        {/* --- PRŮBĚH ZÁPASU --- */}
+        {/* --- PRŮBĚH ZÁPASU S DETAILNÍM STAVEM MÍČKŮ --- */}
         <div style={{ marginBottom: '30px', fontSize: '20px', textAlign: 'left' }}>
           <h3 style={{ borderBottom: '2px solid #000', paddingBottom: '5px', marginBottom: '15px' }}>Vývoj skóre (průběh setů)</h3>
+          <p style={{ fontSize: '14px', fontStyle: 'italic', color: '#555', marginTop: '-10px', marginBottom: '15px' }}>* V závorce je uveden bodový stav, při kterém vítěz danou hru (gem) ukončil.</p>
           
           {score.game_log && score.game_log.map((log, idx) => {
             const isCurrentSet = (idx === (score.completed_sets?.length || 0));
@@ -334,7 +332,6 @@ export const MatchView = ({
       {/* ==================================================== */}
       <div className="no-print" style={{ background: isDivak ? '#000' : '#f4f7f6', color: isDivak ? 'white' : '#000', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'clamp(5px, 1vw, 15px)', boxSizing: 'border-box', zIndex: 50 }}>
         
-        {/* TLAČÍTKO V OKNĚ VÍTĚZE */}
         {ukazatKonecnyOverlay && !isDivak && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
             <div style={{ background: '#fff', padding: '40px', borderRadius: '20px', textAlign: 'center', maxWidth: '700px', width: '90%', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
@@ -354,9 +351,8 @@ export const MatchView = ({
           <button onClick={zpetDoMenu} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', background: '#444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', zIndex: 10 }}>← Zpět</button>
           
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', zIndex: 10 }}>
-            {/* TLAČÍTKO PRO PDF EXPORT */}
             {!isDivak && (
-              <button onClick={tiskDoPDF} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+              <button onClick={tiskDoPDF} style={{ padding: 'clamp(6px, 1.5vh, 10px) clamp(10px, 2vw, 20px)', fontSize: 'clamp(12px, 2vh, 16px)', cursor: 'pointer', background: '#28a745', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
                 📄 Uložit Zápis (PDF)
               </button>
             )}
