@@ -3,19 +3,28 @@ import { posunoutVitezeVPlayoff } from '../utils/playoffLogic';
 export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase) => {
 
   const spustitLive = async () => {
-    await supabase.from('matches').update({ status: 'live' }).eq('id', activeMatchId);
-    setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live' } : z));
+    let st = JSON.parse(JSON.stringify(score));
+    if (!st.start_time) st.start_time = Date.now(); // Zapnutí stopek
+    setScore(st);
+    await supabase.from('matches').update({ status: 'live', match_state: st }).eq('id', activeMatchId);
+    setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live', match_state: st } : z));
   }
 
   const znovuOtevritZapas = async () => {
     if (window.confirm("Opravdu chcete zápas odemknout pro úpravy? Zápas dočasně zmizí z tabulky, dokud ho znovu neuložíte.")) {
-      await supabase.from('matches').update({ status: 'live' }).eq('id', activeMatchId);
-      setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live' } : z));
+      let st = JSON.parse(JSON.stringify(score));
+      st.end_time = null; // Pokud ho znovu otevřeme, stopky zase běží
+      setScore(st);
+      await supabase.from('matches').update({ status: 'live', match_state: st }).eq('id', activeMatchId);
+      setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live', match_state: st } : z));
     }
   }
 
   const ukoncitZapas = async () => {
-    await supabase.from('matches').update({ status: 'finished' }).eq('id', activeMatchId);
+    let st = JSON.parse(JSON.stringify(score));
+    if (!st.end_time) st.end_time = Date.now(); // Vypnutí stopek na konci
+    setScore(st);
+    await supabase.from('matches').update({ status: 'finished', match_state: st }).eq('id', activeMatchId);
     await posunoutVitezeVPlayoff(supabase);
     zpetDoMenu();
   }
@@ -32,6 +41,8 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       st.current_set = { player1_games: 0, player2_games: 0 };
       st.current_game = { player1_points: "0", player2_points: "0" };
       st.is_tiebreak = false; st.is_default = true;
+      st.first_fault = false;
+      if (!st.end_time) st.end_time = Date.now();
       st.game_log = [["KONTUMACE 6:0"], ["KONTUMACE 6:0"], []];
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
@@ -50,6 +61,8 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       st.current_set = { player1_games: 0, player2_games: 0 };
       st.current_game = { player1_points: "0", player2_points: "0" };
       st.is_tiebreak = false; st.is_default = true;
+      st.first_fault = false;
+      if (!st.end_time) st.end_time = Date.now();
       st.fault_player = odpoved.trim() === "1" ? score.player1_name : (odpoved.trim() === "2" ? score.player2_name : null);
       st.game_log = [["OBOUSTRANNÁ KONTUMACE 0:0"], ["OBOUSTRANNÁ KONTUMACE 0:0"], []];
       setScore(st);
@@ -74,9 +87,24 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
   }
 
   const rucniPrepnutiPodani = async () => {
-    const novyStav = { ...score, server: score.server === 1 ? 2 : 1, _history: [...(score._history || []), { ...score, _history: undefined }].slice(-50) };
+    const novyStav = { ...score, server: score.server === 1 ? 2 : 1, first_fault: false, _history: [...(score._history || []), { ...score, _history: undefined }].slice(-50) };
     setScore(novyStav);
     await supabase.from('matches').update({ match_state: novyStav }).eq('id', activeMatchId);
+  }
+
+  // Tlačítko pro CHYBU PODÁNÍ a DVOJCHYBU
+  const pridatChybuPodani = async () => {
+    if (!score.first_fault) {
+      let st = JSON.parse(JSON.stringify(score));
+      st._history = [...(score._history || []), { ...score, _history: undefined }].slice(-50);
+      st.first_fault = true; // Hráč udělal 1. chybu
+      setScore(st);
+      await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId);
+    } else {
+      // Dvojchyba -> Bod získá přijímající hráč
+      const prijimajiciHrac = score.server === 1 ? 2 : 1;
+      pridatBod(prijimajiciHrac);
+    }
   }
 
   const pridatBod = async (hrac, isHawkEye = false) => {
@@ -84,6 +112,9 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     let st = JSON.parse(JSON.stringify(score));
     st._history = [...(score._history || []), { ...score, _history: undefined }].slice(-50);
     if (isHawkEye) st.hawk_eye_timestamp = Date.now();
+
+    // PŘI KAŽDÉM ÚSPĚŠNÉM BODU SE ZRUŠÍ PŘÍPADNÁ 1. CHYBA
+    st.first_fault = false;
 
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false; let matchTbPoints = null; let tbScore = null;
@@ -135,5 +166,5 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     setScore(st); await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId)
   }
 
-  return { spustitLive, znovuOtevritZapas, ukoncitZapas, kontumovatZapas, oboustrannaKontumace, krokZpet, zmenitJmenoHrace, rucniPrepnutiPodani, pridatBod };
+  return { spustitLive, znovuOtevritZapas, ukoncitZapas, kontumovatZapas, oboustrannaKontumace, krokZpet, zmenitJmenoHrace, rucniPrepnutiPodani, pridatBod, pridatChybuPodani };
 }

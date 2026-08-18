@@ -99,17 +99,19 @@ function App() {
 
   const spustitNovyZapas = async () => {
     if (!newMatchP1 || !newMatchP2) { alert("Vyberte prosím oba hráče!"); return; }
+    
+    // PŘIDÁNO: start_time, end_time a first_fault
     const vychoziStav = {
       player1_name: newMatchP1, player2_name: newMatchP2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
       current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
-      is_tiebreak: false, game_log: [[], [], []], _history: [], hawk_eye_timestamp: null
+      is_tiebreak: false, game_log: [[], [], []], _history: [], hawk_eye_timestamp: null,
+      first_fault: false, start_time: null, end_time: null
     }
     const { data } = await supabase.from('matches').insert([{ player1_name: newMatchP1, player2_name: newMatchP2, status: "planned", round: null, match_state: vychoziStav }]).select()
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
-  // Natažení funkcí pro MatchView přes Custom Hook
   const matchActions = useMatchActions(score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase);
 
   if (view === 'import' && !isDivak) return <ImportData zpetDoMenu={zpetDoMenu} />
