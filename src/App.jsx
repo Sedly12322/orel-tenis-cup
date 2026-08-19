@@ -100,7 +100,6 @@ function App() {
   const spustitNovyZapas = async () => {
     if (!newMatchP1 || !newMatchP2) { alert("Vyberte prosím oba hráče!"); return; }
     
-    // PŘIDÁNO: start_time, end_time a first_fault
     const vychoziStav = {
       player1_name: newMatchP1, player2_name: newMatchP2, server: 1,
       sets_won: { player1: 0, player2: 0 }, completed_sets: [],
@@ -122,16 +121,31 @@ function App() {
     return <MatchView score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={score._history || []} isDivak={isDivak} zpetDoMenu={zpetDoMenu} {...matchActions} />
   }
 
+  // --- REŽIM TV KIOSKU ---
   if (view === 'tv_kiosk') {
-    if (activeMatchId && score) return <MatchView score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={score._history || []} isDivak={true} isKiosk={true} zpetDoMenu={zpetDoMenu} {...matchActions} />
+    if (activeMatchId && score) {
+      return (
+        <>
+          {/* Zákaz myši pro probíhající zápas */}
+          <style>{`* { cursor: none !important; }`}</style>
+          <MatchView score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={score._history || []} isDivak={true} isKiosk={true} zpetDoMenu={zpetDoMenu} {...matchActions} />
+        </>
+      )
+    }
     return (
       <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
-        <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '10px 20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: 0.5 }}>← Menu</button>
+        {/* Zákaz myši pro čekací obrazovku */}
+        <style>{`
+          * { cursor: none !important; }
+          @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        `}</style>
+        
+        {/* Tlačítko Zpět funguje i naslepo pro případ záchrany */}
+        <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '10px 20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', opacity: 0.5 }}>← Menu</button>
         <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', color: '#28a745', margin: '0 0 20px 0', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
         <div style={{ width: '100%', maxWidth: '800px', height: '4px', background: '#333', marginBottom: '40px' }}></div>
         <h2 style={{ fontSize: 'clamp(20px, 4vw, 40px)', color: '#aaa', fontWeight: 'normal' }}>Aktuálně neprobíhá žádný zápas</h2>
         <div style={{ marginTop: '60px' }}><div style={{ animation: 'pulse 2s infinite', color: '#555', fontSize: '24px' }}>Čekání na spuštění zápasu...</div></div>
-        <style>{`@keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }`}</style>
       </div>
     )
   }
