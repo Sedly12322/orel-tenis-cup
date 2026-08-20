@@ -3,7 +3,6 @@ import { generujHlaseni } from '../utils/gameLogic';
 
 const HawkEyeAnimation = ({ onClose }) => (
   <div onClick={onClose} className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 999999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
-    {/* ZDE BYL TEXT "Hawk-Eye Challenge", KTERÝ JE NYNÍ ODSTRANĚN */}
     <div style={{ position: 'relative', width: 'clamp(200px, 40vw, 400px)', height: 'clamp(300px, 60vh, 500px)', border: '2px solid rgba(255,255,255,0.3)', background: '#115278', transform: 'perspective(600px) rotateX(50deg)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
        <div style={{ position: 'absolute', top: 0, bottom: 0, right: '20%', width: '8px', background: '#fff', boxShadow: '0 0 10px rgba(255,255,255,0.5)' }}></div>
        <div style={{ position: 'absolute', top: '45%', right: '5%', width: '12%', height: '10%', background: 'rgba(0,0,0,0.3)', borderRadius: '50%', opacity: 0, animation: 'markAppear 4.5s linear forwards', transform: 'rotate(20deg)' }}></div>
@@ -149,66 +148,74 @@ export const MatchView = ({
   }
   if (!prubehText) prubehText = "Zápas právě začal (0:0)";
 
-  const ScoreboardTable = () => (
-    <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '12px', padding: 'clamp(5px, 1vh, 15px)', color: '#fff', width: '100%', maxWidth: '1000px', margin: '0 auto clamp(5px, 1.5vh, 15px) auto', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', flexShrink: 0, overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 'clamp(14px, 2.2vh, 24px)', whiteSpace: 'nowrap' }}>
-        <thead>
-          <tr style={{ color: '#aaa', borderBottom: '2px solid #555' }}>
-            <th style={{ textAlign: 'left', padding: 'clamp(4px, 1vh, 10px)', width: '40%' }}>Hráč</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#888' }}>1.</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#888' }}>2.</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#888' }}>3.</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#fff', borderLeft: '2px solid #555' }}>Sety</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#ffeb3b' }}>Hry</th>
-            <th style={{ padding: 'clamp(4px, 1vh, 10px)', color: '#00ff88' }}>Míče</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style={{ borderBottom: '1px solid #333' }}>
-            <td style={{ textAlign: 'left', padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#fff', position: 'relative' }}>
-              {score.server === 1 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
-              {score.player1_name || "Hráč 1"}
-              {score.server === 1 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: '12px', height: '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 5px #dc3545' }} title="1. Chyba"></span>}
-            </td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[0]?.player1_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[1]?.player1_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[2]?.player1_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', borderLeft: '2px solid #555' }}>{score.sets_won?.player1 || 0}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '6px' }}>{score.current_game.player1_points}</td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'left', padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#fff', position: 'relative' }}>
-              {score.server === 2 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
-              {score.player2_name || "Hráč 2"}
-              {score.server === 2 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: '12px', height: '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 5px #dc3545' }} title="1. Chyba"></span>}
-            </td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[0]?.player2_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[1]?.player2_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)' }}>{score.completed_sets[2]?.player2_games ?? '-'}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', borderLeft: '2px solid #555' }}>{score.sets_won?.player2 || 0}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</td>
-            <td style={{ padding: 'clamp(4px, 1vh, 10px)', fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '6px' }}>{score.current_game.player2_points}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
+  const ScoreboardTable = () => {
+    // Ještě větší písmo a odsazení pro diváky/televizi!
+    const cellPad = isDivak ? 'clamp(10px, 3vh, 25px)' : 'clamp(4px, 1vh, 10px)';
+    const tblFont = isDivak ? 'clamp(24px, 5vh, 60px)' : 'clamp(14px, 2.2vh, 24px)';
+
+    return (
+      <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '15px', padding: 'clamp(5px, 1.5vh, 20px)', color: '#fff', width: '100%', maxWidth: isDivak ? '1800px' : '1000px', margin: '0 auto clamp(10px, 2vh, 20px) auto', boxShadow: '0 8px 25px rgba(0,0,0,0.5)', flexShrink: 0, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: tblFont, whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ color: '#aaa', borderBottom: isDivak ? '4px solid #555' : '2px solid #555' }}>
+              <th style={{ textAlign: 'left', padding: cellPad, width: '40%' }}>Hráč</th>
+              <th style={{ padding: cellPad, color: '#888' }}>1.</th>
+              <th style={{ padding: cellPad, color: '#888' }}>2.</th>
+              <th style={{ padding: cellPad, color: '#888' }}>3.</th>
+              <th style={{ padding: cellPad, color: '#fff', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>Sety</th>
+              <th style={{ padding: cellPad, color: '#ffeb3b' }}>Hry</th>
+              <th style={{ padding: cellPad, color: '#00ff88' }}>Míče</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: isDivak ? '2px solid #333' : '1px solid #333' }}>
+              <td style={{ textAlign: 'left', padding: cellPad, fontWeight: 'bold', color: '#fff', position: 'relative' }}>
+                {score.server === 1 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
+                {score.player1_name || "Hráč 1"}
+                {score.server === 1 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: isDivak ? '20px' : '12px', height: isDivak ? '20px' : '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
+              </td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[0]?.player1_games ?? '-'}</td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[1]?.player1_games ?? '-'}</td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[2]?.player1_games ?? '-'}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>{score.sets_won?.player1 || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '10px' }}>{score.current_game.player1_points}</td>
+            </tr>
+            <tr>
+              <td style={{ textAlign: 'left', padding: cellPad, fontWeight: 'bold', color: '#fff', position: 'relative' }}>
+                {score.server === 2 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
+                {score.player2_name || "Hráč 2"}
+                {score.server === 2 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: isDivak ? '20px' : '12px', height: isDivak ? '20px' : '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
+              </td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[0]?.player2_games ?? '-'}</td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[1]?.player2_games ?? '-'}</td>
+              <td style={{ padding: cellPad }}>{score.completed_sets[2]?.player2_games ?? '-'}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>{score.sets_won?.player2 || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '10px' }}>{score.current_game.player2_points}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   const Hrac1_Divak = (
     <div key="h1_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(20px, 4vh, 50px)', margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
+      <h2 style={{ fontSize: 'clamp(20px, 3.5vh, 40px)', margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-        <span style={{ fontSize: 'clamp(80px, 25vh, 300px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player1_points}</span>
+        {/* Míčky jsou nyní menší a ustupují tabulce */}
+        <span style={{ fontSize: 'clamp(40px, 12vh, 140px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player1_points}</span>
       </div>
     </div>
   );
 
   const Hrac2_Divak = (
     <div key="h2_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(20px, 4vh, 50px)', margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
+      <h2 style={{ fontSize: 'clamp(20px, 3.5vh, 40px)', margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-        <span style={{ fontSize: 'clamp(80px, 25vh, 300px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player2_points}</span>
+        {/* Míčky jsou nyní menší a ustupují tabulce */}
+        <span style={{ fontSize: 'clamp(40px, 12vh, 140px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player2_points}</span>
       </div>
     </div>
   );
@@ -306,7 +313,6 @@ export const MatchView = ({
 
       {showHawkEye && <HawkEyeAnimation onClose={() => setShowHawkEye(false)} />}
 
-      {/* TISKOVÝ REPORT (ZÁPIS O UTKÁNÍ) */}
       <div className="print-only" style={{ fontFamily: 'Arial, sans-serif' }}>
         <h1 style={{ textAlign: 'center', borderBottom: '3px solid #000', paddingBottom: '15px', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
         <h2 style={{ textAlign: 'center', margin: '20px 0 40px 0', fontSize: '28px' }}>OFICIÁLNÍ ZÁPIS O UTKÁNÍ</h2>
@@ -344,7 +350,6 @@ export const MatchView = ({
           </tbody>
         </table>
 
-        {/* --- PRŮBĚH ZÁPASU S DETAILNÍM STAVEM MÍČKŮ --- */}
         <div style={{ marginBottom: '30px', fontSize: '20px', textAlign: 'left' }}>
           <h3 style={{ borderBottom: '2px solid #000', paddingBottom: '5px', marginBottom: '15px' }}>Vývoj skóre (průběh setů)</h3>
           <p style={{ fontSize: '14px', fontStyle: 'italic', color: '#555', marginTop: '-10px', marginBottom: '15px' }}>* V závorce je uveden bodový stav, při kterém vítěz danou hru (gem) ukončil.</p>
@@ -393,9 +398,6 @@ export const MatchView = ({
         </div>
       </div>
 
-      {/* ==================================================== */}
-      {/* NORMÁLNÍ APLIKACE (Skryta během tisku)                 */}
-      {/* ==================================================== */}
       <div className="no-print" style={{ background: isDivak ? '#000' : '#f4f7f6', color: isDivak ? 'white' : '#000', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'clamp(5px, 1vw, 15px)', boxSizing: 'border-box', zIndex: 50 }}>
         
         {ukazatKonecnyOverlay && !isDivak && (
@@ -460,7 +462,6 @@ export const MatchView = ({
           </div>
         )}
 
-        {/* ZOBRAZENÍ ČASOMÍRY UPROSTŘED OBRAZOVKY */}
         <div style={{ flexShrink: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ fontSize: 'clamp(20px, 4vh, 32px)', fontWeight: 'bold', fontFamily: 'monospace', background: '#333', color: '#ffeb3b', padding: '5px 15px', borderRadius: '8px', marginBottom: '10px' }}>
             ⏱ {elapsedTime}
@@ -472,7 +473,7 @@ export const MatchView = ({
         
         <ScoreboardTable />
         
-        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: isDivak ? '1600px' : '1200px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: isDivak ? '1800px' : '1200px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
           {isDivak ? kartyDivak : kartyRozhodci}
         </div>
       </div>
