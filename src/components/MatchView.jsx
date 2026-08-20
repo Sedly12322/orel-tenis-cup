@@ -149,17 +149,17 @@ export const MatchView = ({
   if (!prubehText) prubehText = "Zápas právě začal (0:0)";
 
   const ScoreboardTable = () => {
-    // Inteligentní rozlišení velikostí: Kiosek (TV) vs Divák (Mobil) vs Rozhodčí (Tablet)
-    const cellPad = isKiosk ? 'clamp(10px, 3vh, 25px)' : (isDivak ? 'clamp(8px, 2vh, 18px)' : 'clamp(4px, 1vh, 10px)');
-    const tblFont = isKiosk ? 'clamp(24px, 5vh, 60px)' : (isDivak ? 'clamp(20px, 3.5vh, 40px)' : 'clamp(14px, 2.2vh, 24px)');
-    const tblMaxWidth = isKiosk ? '1800px' : (isDivak ? '1400px' : '1000px');
+    // 1. Zvětšené pouze pro KIOSK (TV). 2. Pro mobil a rozhodčího bezpečně malé, aby se nerozbilo.
+    const cellPad = isKiosk ? 'clamp(10px, 3vh, 25px)' : 'clamp(4px, 1vh, 10px)';
+    const tblFont = isKiosk ? 'clamp(24px, 5vh, 60px)' : 'clamp(12px, 2.2vh, 20px)';
+    const tblMaxWidth = isKiosk ? '1800px' : '1000px';
     const btmBorder = isKiosk ? '4px solid #555' : '2px solid #555';
     const leftBorder = isKiosk ? '4px solid #555' : '2px solid #555';
     const trBtmBorder = isKiosk ? '2px solid #333' : '1px solid #333';
-    const faultSize = isKiosk ? '20px' : (isDivak ? '16px' : '12px');
+    const faultSize = isKiosk ? '20px' : '12px';
 
     return (
-      <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '15px', padding: 'clamp(5px, 1.5vh, 20px)', color: '#fff', width: '100%', maxWidth: tblMaxWidth, margin: '0 auto clamp(10px, 2vh, 20px) auto', boxShadow: '0 8px 25px rgba(0,0,0,0.5)', flexShrink: 0, overflowX: 'auto' }}>
+      <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '15px', padding: 'clamp(5px, 1.5vh, 20px)', color: '#fff', width: '100%', maxWidth: tblMaxWidth, margin: '0 auto clamp(5px, 1vh, 15px) auto', boxShadow: '0 8px 25px rgba(0,0,0,0.5)', flexShrink: 0, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: tblFont, whiteSpace: 'nowrap' }}>
           <thead>
             <tr style={{ color: '#aaa', borderBottom: btmBorder }}>
@@ -205,13 +205,17 @@ export const MatchView = ({
     );
   };
 
-  // Rozlišení velikosti fontů v kartách (TV vs Mobil divák)
-  const nameFontSize = isKiosk ? 'clamp(20px, 3.5vh, 40px)' : 'clamp(20px, 4vh, 50px)';
-  const scoreFontSize = isKiosk ? 'clamp(40px, 12vh, 140px)' : 'clamp(80px, 25vh, 300px)';
+  // Bezpečné hodnoty karet pro různé obrazovky
+  const nameFontSize = isKiosk ? 'clamp(20px, 3.5vh, 40px)' : 'clamp(16px, 3vh, 35px)';
+  const scoreFontSize = isKiosk ? 'clamp(40px, 12vh, 140px)' : 'clamp(60px, 18vh, 200px)'; // Divák má velké míčky
+  const paddingDivak = isKiosk ? 'clamp(10px, 2vh, 30px)' : 'clamp(5px, 1vh, 15px)';
+
+  // flex-basis nastaven z 200px na 120px pro mobilního diváka: zaručuje, že karty nespadnou pod sebe a nevytvoří scroll
+  const flexBasisDivak = isKiosk ? '200px' : '120px';
 
   const Hrac1_Divak = (
-    <div key="h1_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
+    <div key="h1_d" style={{ flex: `1 1 ${flexBasisDivak}`, background: '#111', padding: paddingDivak, borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
         <span style={{ fontSize: scoreFontSize, fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player1_points}</span>
       </div>
@@ -219,8 +223,8 @@ export const MatchView = ({
   );
 
   const Hrac2_Divak = (
-    <div key="h2_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
+    <div key="h2_d" style={{ flex: `1 1 ${flexBasisDivak}`, background: '#111', padding: paddingDivak, borderRadius: '15px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
         <span style={{ fontSize: scoreFontSize, fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player2_points}</span>
       </div>
@@ -230,7 +234,7 @@ export const MatchView = ({
   const kartyDivak = [Hrac1_Divak, Hrac2_Divak];
 
   const Hrac1_Rozhodci = (
-    <div key="h1_r" style={{ flex: '1 1 200px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #28a745' : 'clamp(3px, 0.5vw, 6px) solid #ddd', padding: 'clamp(8px, 1.5vh, 15px)', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
+    <div key="h1_r" style={{ flex: '1 1 150px', background: score.server === 1 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #28a745' : 'clamp(3px, 0.5vw, 6px) solid #ddd', padding: 'clamp(8px, 1.5vh, 15px)', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
       {zamknoutJmena ? (
         <h2 style={{fontSize: 'clamp(20px, 4vh, 40px)', margin: '2px 0 clamp(4px, 1vh, 15px) 0', color: '#000', fontWeight: '900', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0}}>{score.player1_name}</h2>
       ) : (
@@ -268,7 +272,7 @@ export const MatchView = ({
   );
 
   const Hrac2_Rozhodci = (
-    <div key="h2_r" style={{ flex: '1 1 200px', background: score.server === 2 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #28a745' : 'clamp(3px, 0.5vw, 6px) solid #ddd', padding: 'clamp(8px, 1.5vh, 15px)', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
+    <div key="h2_r" style={{ flex: '1 1 150px', background: score.server === 2 ? '#e2f0d9' : '#fff', color: '#000', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #28a745' : 'clamp(3px, 0.5vw, 6px) solid #ddd', padding: 'clamp(8px, 1.5vh, 15px)', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
       {zamknoutJmena ? (
         <h2 style={{fontSize: 'clamp(20px, 4vh, 40px)', margin: '2px 0 clamp(4px, 1vh, 15px) 0', color: '#000', fontWeight: '900', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0}}>{score.player2_name}</h2>
       ) : (
@@ -472,7 +476,7 @@ export const MatchView = ({
         )}
 
         <div style={{ flexShrink: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: 'clamp(20px, 4vh, 32px)', fontWeight: 'bold', fontFamily: 'monospace', background: '#333', color: '#ffeb3b', padding: '5px 15px', borderRadius: '8px', marginBottom: '10px' }}>
+          <div style={{ fontSize: 'clamp(16px, 3vh, 32px)', fontWeight: 'bold', fontFamily: 'monospace', background: '#333', color: '#ffeb3b', padding: '4px 12px', borderRadius: '8px', marginBottom: 'clamp(2px, 1vh, 10px)' }}>
             ⏱ {elapsedTime}
           </div>
           {dosahlKonce && isDivak && <h2 style={{ color: '#28a745', fontSize: 'clamp(18px, 3vh, 30px)', margin: '0 0 5px 0' }}>🏆 VÍTĚZ: {vitezName} 🏆</h2>}
