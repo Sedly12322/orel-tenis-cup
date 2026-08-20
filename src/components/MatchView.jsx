@@ -149,35 +149,40 @@ export const MatchView = ({
   if (!prubehText) prubehText = "Zápas právě začal (0:0)";
 
   const ScoreboardTable = () => {
-    // Ještě větší písmo a odsazení pro diváky/televizi!
-    const cellPad = isDivak ? 'clamp(10px, 3vh, 25px)' : 'clamp(4px, 1vh, 10px)';
-    const tblFont = isDivak ? 'clamp(24px, 5vh, 60px)' : 'clamp(14px, 2.2vh, 24px)';
+    // Inteligentní rozlišení velikostí: Kiosek (TV) vs Divák (Mobil) vs Rozhodčí (Tablet)
+    const cellPad = isKiosk ? 'clamp(10px, 3vh, 25px)' : (isDivak ? 'clamp(8px, 2vh, 18px)' : 'clamp(4px, 1vh, 10px)');
+    const tblFont = isKiosk ? 'clamp(24px, 5vh, 60px)' : (isDivak ? 'clamp(20px, 3.5vh, 40px)' : 'clamp(14px, 2.2vh, 24px)');
+    const tblMaxWidth = isKiosk ? '1800px' : (isDivak ? '1400px' : '1000px');
+    const btmBorder = isKiosk ? '4px solid #555' : '2px solid #555';
+    const leftBorder = isKiosk ? '4px solid #555' : '2px solid #555';
+    const trBtmBorder = isKiosk ? '2px solid #333' : '1px solid #333';
+    const faultSize = isKiosk ? '20px' : (isDivak ? '16px' : '12px');
 
     return (
-      <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '15px', padding: 'clamp(5px, 1.5vh, 20px)', color: '#fff', width: '100%', maxWidth: isDivak ? '1800px' : '1000px', margin: '0 auto clamp(10px, 2vh, 20px) auto', boxShadow: '0 8px 25px rgba(0,0,0,0.5)', flexShrink: 0, overflowX: 'auto' }}>
+      <div style={{ background: isDivak ? '#111' : '#222', borderRadius: '15px', padding: 'clamp(5px, 1.5vh, 20px)', color: '#fff', width: '100%', maxWidth: tblMaxWidth, margin: '0 auto clamp(10px, 2vh, 20px) auto', boxShadow: '0 8px 25px rgba(0,0,0,0.5)', flexShrink: 0, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: tblFont, whiteSpace: 'nowrap' }}>
           <thead>
-            <tr style={{ color: '#aaa', borderBottom: isDivak ? '4px solid #555' : '2px solid #555' }}>
+            <tr style={{ color: '#aaa', borderBottom: btmBorder }}>
               <th style={{ textAlign: 'left', padding: cellPad, width: '40%' }}>Hráč</th>
               <th style={{ padding: cellPad, color: '#888' }}>1.</th>
               <th style={{ padding: cellPad, color: '#888' }}>2.</th>
               <th style={{ padding: cellPad, color: '#888' }}>3.</th>
-              <th style={{ padding: cellPad, color: '#fff', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>Sety</th>
+              <th style={{ padding: cellPad, color: '#fff', borderLeft: leftBorder }}>Sety</th>
               <th style={{ padding: cellPad, color: '#ffeb3b' }}>Hry</th>
               <th style={{ padding: cellPad, color: '#00ff88' }}>Míče</th>
             </tr>
           </thead>
           <tbody>
-            <tr style={{ borderBottom: isDivak ? '2px solid #333' : '1px solid #333' }}>
+            <tr style={{ borderBottom: trBtmBorder }}>
               <td style={{ textAlign: 'left', padding: cellPad, fontWeight: 'bold', color: '#fff', position: 'relative' }}>
                 {score.server === 1 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
                 {score.player1_name || "Hráč 1"}
-                {score.server === 1 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: isDivak ? '20px' : '12px', height: isDivak ? '20px' : '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
+                {score.server === 1 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: faultSize, height: faultSize, background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
               </td>
               <td style={{ padding: cellPad }}>{score.completed_sets[0]?.player1_games ?? '-'}</td>
               <td style={{ padding: cellPad }}>{score.completed_sets[1]?.player1_games ?? '-'}</td>
               <td style={{ padding: cellPad }}>{score.completed_sets[2]?.player1_games ?? '-'}</td>
-              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>{score.sets_won?.player1 || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: leftBorder }}>{score.sets_won?.player1 || 0}</td>
               <td style={{ padding: cellPad, fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player1_games || 0}</td>
               <td style={{ padding: cellPad, fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '10px' }}>{score.current_game.player1_points}</td>
             </tr>
@@ -185,12 +190,12 @@ export const MatchView = ({
               <td style={{ textAlign: 'left', padding: cellPad, fontWeight: 'bold', color: '#fff', position: 'relative' }}>
                 {score.server === 2 ? '🎾 ' : <span style={{visibility: 'hidden'}}>🎾 </span>}
                 {score.player2_name || "Hráč 2"}
-                {score.server === 2 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: isDivak ? '20px' : '12px', height: isDivak ? '20px' : '12px', background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
+                {score.server === 2 && score.first_fault && <span style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', width: faultSize, height: faultSize, background: '#dc3545', borderRadius: '50%', boxShadow: '0 0 10px #dc3545' }} title="1. Chyba"></span>}
               </td>
               <td style={{ padding: cellPad }}>{score.completed_sets[0]?.player2_games ?? '-'}</td>
               <td style={{ padding: cellPad }}>{score.completed_sets[1]?.player2_games ?? '-'}</td>
               <td style={{ padding: cellPad }}>{score.completed_sets[2]?.player2_games ?? '-'}</td>
-              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: isDivak ? '4px solid #555' : '2px solid #555' }}>{score.sets_won?.player2 || 0}</td>
+              <td style={{ padding: cellPad, fontWeight: 'bold', borderLeft: leftBorder }}>{score.sets_won?.player2 || 0}</td>
               <td style={{ padding: cellPad, fontWeight: 'bold', color: '#ffeb3b' }}>{score.current_set?.player2_games || 0}</td>
               <td style={{ padding: cellPad, fontWeight: 'bold', color: '#00ff88', background: 'rgba(0,255,136,0.1)', borderRadius: '10px' }}>{score.current_game.player2_points}</td>
             </tr>
@@ -200,22 +205,24 @@ export const MatchView = ({
     );
   };
 
+  // Rozlišení velikosti fontů v kartách (TV vs Mobil divák)
+  const nameFontSize = isKiosk ? 'clamp(20px, 3.5vh, 40px)' : 'clamp(20px, 4vh, 50px)';
+  const scoreFontSize = isKiosk ? 'clamp(40px, 12vh, 140px)' : 'clamp(80px, 25vh, 300px)';
+
   const Hrac1_Divak = (
     <div key="h1_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 1 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(20px, 3.5vh, 40px)', margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
+      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player1_name || "Hráč 1"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-        {/* Míčky jsou nyní menší a ustupují tabulce */}
-        <span style={{ fontSize: 'clamp(40px, 12vh, 140px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player1_points}</span>
+        <span style={{ fontSize: scoreFontSize, fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player1_points}</span>
       </div>
     </div>
   );
 
   const Hrac2_Divak = (
     <div key="h2_d" style={{ flex: '1 1 200px', background: '#111', padding: 'clamp(10px, 2vh, 30px)', borderRadius: '15px', border: score.server === 2 ? 'clamp(3px, 0.5vw, 6px) solid #00ff88' : 'clamp(3px, 0.5vw, 6px) solid transparent', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-      <h2 style={{ fontSize: 'clamp(20px, 3.5vh, 40px)', margin: '0 0 min(2vh, 10px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
+      <h2 style={{ fontSize: nameFontSize, margin: '0 0 min(2vh, 15px) 0', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{score.player2_name || "Hráč 2"}</h2>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
-        {/* Míčky jsou nyní menší a ustupují tabulce */}
-        <span style={{ fontSize: 'clamp(40px, 12vh, 140px)', fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player2_points}</span>
+        <span style={{ fontSize: scoreFontSize, fontWeight: 'bold', color: score.is_tiebreak ? '#ff4444' : '#00ff88', lineHeight: 0.85 }}>{score.current_game.player2_points}</span>
       </div>
     </div>
   );
@@ -299,6 +306,8 @@ export const MatchView = ({
   );
 
   const kartyRozhodci = zobrazitProhozene ? [Hrac2_Rozhodci, Hrac1_Rozhodci] : [Hrac1_Rozhodci, Hrac2_Rozhodci];
+
+  const containerMaxWidth = isKiosk ? '1800px' : (isDivak ? '1600px' : '1200px');
 
   return (
     <>
@@ -473,7 +482,7 @@ export const MatchView = ({
         
         <ScoreboardTable />
         
-        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: isDivak ? '1800px' : '1200px', margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '15px', width: '100%', maxWidth: containerMaxWidth, margin: '0 auto', minHeight: 0, alignItems: 'stretch', alignContent: 'stretch', justifyContent: 'center' }}>
           {isDivak ? kartyDivak : kartyRozhodci}
         </div>
       </div>
