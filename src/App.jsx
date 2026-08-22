@@ -28,6 +28,10 @@ function App() {
   const [newMatchP1, setNewMatchP1] = useState('');
   const [newMatchP2, setNewMatchP2] = useState('');
 
+  // STATY PRO ZPRÁVU NA TV
+  const [tvMessage, setTvMessage] = useState('');
+  const [tvMessageInput, setTvMessageInput] = useState('');
+
   useEffect(() => {
     const handleHashChange = () => { if (window.location.hash === '#tv') setView('tv_kiosk'); };
     handleHashChange();
@@ -38,7 +42,17 @@ function App() {
   useEffect(() => {
     const nactiZapasy = async () => {
       const { data } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
-      if (data) setZapasList(data)
+      if (data) {
+        // Filtrace speciálního zápasu, který slouží jako nosič TV Zprávy
+        const msgMatch = data.find(z => z.status === 'tv_message');
+        if (msgMatch && msgMatch.match_state?.text) {
+          setTvMessage(msgMatch.match_state.text);
+          setTvMessageInput(prev => prev === '' ? msgMatch.match_state.text : prev);
+        } else {
+          setTvMessage('');
+        }
+        setZapasList(data.filter(z => z.status !== 'tv_message'));
+      }
     }
     const nactiHrace = async () => {
       const { data } = await supabase.from('players').select('*').order('name', { ascending: true })
@@ -111,6 +125,17 @@ function App() {
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
+  // Funkce pro uložení zprávy na TV
+  const ulozitTvZpravu = async () => {
+    const { data } = await supabase.from('matches').select('id').eq('status', 'tv_message');
+    if (data && data.length > 0) {
+      await supabase.from('matches').update({ match_state: { text: tvMessageInput } }).eq('id', data[0].id);
+    } else {
+      await supabase.from('matches').insert([{ player1_name: 'TV', player2_name: 'MESSAGE', status: 'tv_message', round: null, match_state: { text: tvMessageInput } }]);
+    }
+    alert("Zpráva pro TV Kiosek byla uložena!");
+  }
+
   const matchActions = useMatchActions(score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase);
 
   if (view === 'import' && !isDivak) return <ImportData zpetDoMenu={zpetDoMenu} />
@@ -126,7 +151,6 @@ function App() {
     if (activeMatchId && score) {
       return (
         <>
-          {/* Zákaz myši pro probíhající zápas */}
           <style>{`* { cursor: none !important; }`}</style>
           <MatchView score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={score._history || []} isDivak={true} isKiosk={true} zpetDoMenu={zpetDoMenu} {...matchActions} />
         </>
@@ -134,17 +158,24 @@ function App() {
     }
     return (
       <div style={{ background: '#000', color: 'white', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
-        {/* Zákaz myši pro čekací obrazovku */}
         <style>{`
           * { cursor: none !important; }
           @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
         `}</style>
         
-        {/* Tlačítko Zpět funguje i naslepo pro případ záchrany */}
         <button onClick={zpetDoMenu} style={{ position: 'absolute', top: '20px', left: '20px', padding: '10px 20px', background: '#222', color: '#555', border: 'none', borderRadius: '8px', opacity: 0.5 }}>← Menu</button>
         <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', color: '#28a745', margin: '0 0 20px 0', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
         <div style={{ width: '100%', maxWidth: '800px', height: '4px', background: '#333', marginBottom: '40px' }}></div>
-        <h2 style={{ fontSize: 'clamp(20px, 4vw, 40px)', color: '#aaa', fontWeight: 'normal' }}>Aktuálně neprobíhá žádný zápas</h2>
+        
+        {/* ZOBRAZENÍ ZPRÁVY PRO TV */}
+        {tvMessage ? (
+          <div style={{ background: 'rgba(255, 235, 59, 0.1)', border: '2px solid #ffeb3b', padding: '30px 50px', borderRadius: '15px', maxWidth: '1000px', boxShadow: '0 0 30px rgba(255, 235, 59, 0.2)' }}>
+            <h2 style={{ fontSize: 'clamp(24px, 4vw, 50px)', color: '#ffeb3b', margin: 0, fontWeight: 'normal', lineHeight: '1.4' }}>{tvMessage}</h2>
+          </div>
+        ) : (
+          <h2 style={{ fontSize: 'clamp(20px, 4vw, 40px)', color: '#aaa', fontWeight: 'normal' }}>Aktuálně neprobíhá žádný zápas</h2>
+        )}
+
         <div style={{ marginTop: '60px' }}><div style={{ animation: 'pulse 2s infinite', color: '#555', fontSize: '24px' }}>Čekání na spuštění zápasu...</div></div>
       </div>
     )
@@ -163,7 +194,12 @@ function App() {
         </div>
       </div>
 
-      <DashboardView zapasList={zapasList} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} otevritNovyZapasModal={() => {setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);}} typTabulky={typTabulky} setTypTabulky={setTypTabulky} />
+      <DashboardView 
+        zapasList={zapasList} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} 
+        otevritNovyZapasModal={() => {setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);}} 
+        typTabulky={typTabulky} setTypTabulky={setTypTabulky} 
+        tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu} // PŘEDÁNÍ PROPS DO MENU
+      />
       
       <NewMatchModal showNewMatchModal={showNewMatchModal} setShowNewMatchModal={setShowNewMatchModal} newMatchGroup={newMatchGroup} setNewMatchGroup={setNewMatchGroup} newMatchP1={newMatchP1} setNewMatchP1={setNewMatchP1} newMatchP2={newMatchP2} setNewMatchP2={setNewMatchP2} zapasList={zapasList} spustitNovyZapas={spustitNovyZapas} />
 

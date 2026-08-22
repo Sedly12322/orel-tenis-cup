@@ -5,21 +5,42 @@ import { HRACI_SKUPINA_A, HRACI_SKUPINA_B } from '../utils/constants';
 
 export const DashboardView = ({
   zapasList, isDivak, otevritZapas, smazatZapas, 
-  otevritNovyZapasModal, typTabulky, setTypTabulky
+  otevritNovyZapasModal, typTabulky, setTypTabulky,
+  tvMessageInput, setTvMessageInput, ulozitTvZpravu // Přijaté funkce z App.jsx
 }) => {
   const liveZapasy = zapasList.filter(z => z.status === 'live');
-  const neZiveZapasy = zapasList.filter(z => z.status !== 'live');
+  const neZiveZapasy = zapasList.filter(z => z.status !== 'live' && z.status !== 'tv_message'); // TV Zpráva nesmí být v seznamech
   const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
   const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
   const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && z.round === null);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
+      
+      {/* OVLÁDÁNÍ ROZHODČÍHO: NOVÝ ZÁPAS + TV KIOSEK ZPRÁVA */}
       {!isDivak && (
-        <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-          <button onClick={otevritNovyZapasModal} style={{ padding: '15px 30px', fontSize: 'clamp(18px, 3vw, 26px)', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>
-            ➕ Vytvořit nový zápas
-          </button>
+        <div style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '30px' }}>📺</span>
+            <div style={{ flex: 1, minWidth: '250px' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#333' }}>Oznámení na TV (zobrazí se, když se nehraje zápas):</label>
+              <input 
+                type="text" 
+                value={tvMessageInput} 
+                onChange={e => setTvMessageInput(e.target.value)} 
+                placeholder="Např. Další zápas začíná v 18:00 (Liška vs. Sedlář)... Ponechte prázdné pro smazání." 
+                style={{ width: '100%', padding: '12px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', boxSizing: 'border-box' }} 
+              />
+            </div>
+            <button onClick={ulozitTvZpravu} style={{ padding: '12px 25px', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-end', height: '45px', fontSize: '16px' }}>Uložit zprávu</button>
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={otevritNovyZapasModal} style={{ padding: '15px 30px', fontSize: 'clamp(18px, 3vw, 26px)', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '50px', boxShadow: '0 6px 20px rgba(40,167,69,0.4)', fontWeight: 'bold' }}>
+              ➕ Vytvořit nový zápas
+            </button>
+          </div>
         </div>
       )}
       
