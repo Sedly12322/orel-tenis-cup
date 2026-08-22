@@ -28,7 +28,6 @@ function App() {
   const [newMatchP1, setNewMatchP1] = useState('');
   const [newMatchP2, setNewMatchP2] = useState('');
 
-  // STATY PRO ZPRÁVU NA TV
   const [tvMessage, setTvMessage] = useState('');
   const [tvMessageInput, setTvMessageInput] = useState('');
 
@@ -43,7 +42,6 @@ function App() {
     const nactiZapasy = async () => {
       const { data } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
       if (data) {
-        // Filtrace speciálního zápasu, který slouží jako nosič TV Zprávy
         const msgMatch = data.find(z => z.status === 'tv_message');
         if (msgMatch && msgMatch.match_state?.text) {
           setTvMessage(msgMatch.match_state.text);
@@ -125,7 +123,6 @@ function App() {
     if (data && data[0]) { setActiveMatchId(data[0].id); setShowNewMatchModal(false); setView('match'); }
   }
 
-  // Funkce pro uložení zprávy na TV
   const ulozitTvZpravu = async () => {
     const { data } = await supabase.from('matches').select('id').eq('status', 'tv_message');
     if (data && data.length > 0) {
@@ -133,7 +130,7 @@ function App() {
     } else {
       await supabase.from('matches').insert([{ player1_name: 'TV', player2_name: 'MESSAGE', status: 'tv_message', round: null, match_state: { text: tvMessageInput } }]);
     }
-    alert("Zpráva pro TV Kiosek byla uložena!");
+    alert("Oznámení pro diváky a TV Kiosek bylo uloženo!");
   }
 
   const matchActions = useMatchActions(score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase);
@@ -146,7 +143,6 @@ function App() {
     return <MatchView score={score} activeMatchId={activeMatchId} zapasList={zapasList} hraciList={hraciList} history={score._history || []} isDivak={isDivak} zpetDoMenu={zpetDoMenu} {...matchActions} />
   }
 
-  // --- REŽIM TV KIOSKU ---
   if (view === 'tv_kiosk') {
     if (activeMatchId && score) {
       return (
@@ -167,7 +163,6 @@ function App() {
         <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', color: '#28a745', margin: '0 0 20px 0', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
         <div style={{ width: '100%', maxWidth: '800px', height: '4px', background: '#333', marginBottom: '40px' }}></div>
         
-        {/* ZOBRAZENÍ ZPRÁVY PRO TV */}
         {tvMessage ? (
           <div style={{ background: 'rgba(255, 235, 59, 0.1)', border: '2px solid #ffeb3b', padding: '30px 50px', borderRadius: '15px', maxWidth: '1000px', boxShadow: '0 0 30px rgba(255, 235, 59, 0.2)' }}>
             <h2 style={{ fontSize: 'clamp(24px, 4vw, 50px)', color: '#ffeb3b', margin: 0, fontWeight: 'normal', lineHeight: '1.4' }}>{tvMessage}</h2>
@@ -198,7 +193,8 @@ function App() {
         zapasList={zapasList} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} 
         otevritNovyZapasModal={() => {setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);}} 
         typTabulky={typTabulky} setTypTabulky={setTypTabulky} 
-        tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu} // PŘEDÁNÍ PROPS DO MENU
+        tvMessage={tvMessage} // <--- PŘEDÁNÍ NAČTENÉ ZPRÁVY
+        tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu} 
       />
       
       <NewMatchModal showNewMatchModal={showNewMatchModal} setShowNewMatchModal={setShowNewMatchModal} newMatchGroup={newMatchGroup} setNewMatchGroup={setNewMatchGroup} newMatchP1={newMatchP1} setNewMatchP1={setNewMatchP1} newMatchP2={newMatchP2} setNewMatchP2={setNewMatchP2} zapasList={zapasList} spustitNovyZapas={spustitNovyZapas} />
