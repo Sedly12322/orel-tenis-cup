@@ -199,6 +199,7 @@ function App() {
         tvMessage={tvMessage}
         tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu}
         selectedYear={selectedYear}
+        supabase={supabase}
       />
       
       <NewMatchModal showNewMatchModal={showNewMatchModal} setShowNewMatchModal={setShowNewMatchModal} newMatchGroup={newMatchGroup} setNewMatchGroup={setNewMatchGroup} newMatchP1={newMatchP1} setNewMatchP1={setNewMatchP1} newMatchP2={newMatchP2} setNewMatchP2={setNewMatchP2} zapasList={zapasList} spustitNovyZapas={spustitNovyZapas} />

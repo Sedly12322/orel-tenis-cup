@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
@@ -27,13 +27,22 @@ export const DashboardView = ({
   zapasList, isDivak, otevritZapas, smazatZapas, 
   otevritNovyZapasModal, typTabulky, setTypTabulky,
   tvMessage, tvMessageInput, setTvMessageInput, ulozitTvZpravu,
-  selectedYear
+  selectedYear,
+  supabase
 }) => {
   const [zobrazeneRok, setZobrazeneRok] = useState('2026');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Reset roku při změně selectedYear prop
+  useEffect(() => {
+    if (selectedYear) {
+      setZobrazeneRok(selectedYear.toString());
+    }
+  }, [selectedYear]);
 
   // Filtrování podle roku
   const filtrovaneZapasy = zobrazeneRok === '2026'
-    ? zapasList
+    ? zapasList.filter(z => !z.match_state || !z.match_state.archive_year)
     : zapasList.filter(z => z.match_state && z.match_state.archive_year && z.match_state.archive_year.toString() === zobrazeneRok);
 
   const liveZapasy = filtrovaneZapasy.filter(z => z.status === 'live');
@@ -42,6 +51,58 @@ export const DashboardView = ({
   const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
   const zapasyCtyrhra = neZiveZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name));
   const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z) && z.round === null);
+
+  // Smazání všech zápasů pro vybraný ročník
+  const smazatZapasyProRok = async (rok) => {
+    constrokText = rok === '2026' ? 'aktuálního roku' : `roku ${rok}`;
+    if (!window.confirm(`🚨 Smazat VŠECHNY zápasy ${rokText}? Nevratné!`)) return;
+    
+    setIsDeleting(true);
+    try {
+      let idsToDelete = [];
+      
+      if (rok === '2026') {
+        // Smazat bez archive_year
+        const { data } = await supabase
+          .from('matches')
+          .select('id, match_state');
+        if (data) {
+          idsToDelete = data
+            .filter(z => !z.match_state || !z.match_state.archive_year)
+            .map(z => z.id);
+        }
+      } else {
+        // Smazat s archive_year
+        const { data } = await supabase
+          .from('matches')
+          .select('id, match_state');
+        if (data) {
+          idsToDelete = data
+            .filter(z => z.match_state && z.match_state.archive_year && z.match_state.archive_year.toString() === rok)
+            .map(z => z.id);
+        }
+      }
+      
+      if (idsToDelete.length > 0) {
+        // Mazání po dávkách po 50
+        for (let i = 0; i < idsToDelete.length; i += 50) {
+          const batch = idsToDelete.slice(i, i + 50);
+          const { error } = await supabase
+            .from('matches')
+            .delete()
+            .in('id', batch);
+          if (error) throw new Error(error.message);
+        }
+        alert(`✅ Smazáno ${idsToDelete.length} zápasů ${rokText}!`);
+      } else {
+        alert(`Žádné zápasy pro ${rokText} nenalezeny.`);
+      }
+    } catch (err) {
+      alert(`❌ Chyba při mazání: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
@@ -52,13 +113,20 @@ export const DashboardView = ({
         <select 
           value={zobrazeneRok} 
           onChange={(e) => setZobrazeneRok(e.target.value)}
-          style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer' }}
+          style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer', marginRight: '15px' }}
         >
           <option value="2026">18. ročník - 2026 (aktuální)</option>
           {RODNICI.map(r => (
             <option key={r.rok} value={r.rok}>{r.popis}</option>
           ))}
         </select>
+        <button 
+          onClick={() => smazatZapasyProRok(zobrazeneRok)}
+          disabled={isDeleting}
+          style={{ padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: isDeleting ? 'not-allowed' : 'pointer', background: isDeleting ? '#6c757d' : '#dc3545', color: '#fff', fontWeight: 'bold' }}
+        >
+          {isDeleting ? '⏳ Mažu...' : `🗑️ Smazat ročník ${zobrazeneRok}`}
+        </button>
       </div>
 
       {/* ZOBRAZENÍ ZPRÁVY PRO VŠECHNY UŽIVATELE (DIVÁKY I ROZHODČÍ) */}
@@ -75,7 +143,7 @@ export const DashboardView = ({
           
           <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '30px' }}>📺</span>
-            <div style={{ flex: 1, minWidth: '250px' }}>
+            <div style={{ flex: '1', minWidth: '250px' }}>
               <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#333' }}>Oznámení divákům a na TV (zobrazí se všem nahoře):</label>
               <input 
                 type="text" 
