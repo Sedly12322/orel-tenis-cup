@@ -230,9 +230,11 @@ export const DashboardView = ({
             return <option key={r.rok} value={r.rok}>{r.popis} ({pocet})</option>;
           })}
         </select>
-        <button onClick={() => smazatRok(2026)} style={{ marginLeft: '15px', padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
-          🗑️ Smazat aktuální
-        </button>
+        {!isDivak && (
+          <button onClick={() => smazatRok(2026)} style={{ marginLeft: '15px', padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
+            🗑️ Smazat aktuální
+          </button>
+        )}
       </div>
 
       {tvMessage && (
