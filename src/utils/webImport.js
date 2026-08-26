@@ -207,11 +207,21 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
   
   const zpracuj = (zapasy) => {
     for (const z of zapasy) {
-      // Zjistíme, jestli zápas už existuje
-      const existujici = existingMatches.find(e => 
-        (e.player1_name === z.player1 && e.player2_name === z.player2) ||
-        (e.player1_name === z.player2 && e.player2_name === z.player1)
-      );
+      // Zjistíme, jestli zápas už existuje (kontrolujeme i rok!)
+      const existujici = existingMatches.find(e => {
+        const samePlayers = 
+          (e.player1_name === z.player1 && e.player2_name === z.player2) ||
+          (e.player1_name === z.player2 && e.player2_name === z.player1);
+        if (!samePlayers) return false;
+        
+        // Kontrola roku - pokud importujeme archiv, porovnáváme archive_year
+        if (year) {
+          return e.match_state?.archive_year === year;
+        } else {
+          // Aktuální rok - hledáme zápasy bez archive_year
+          return !e.match_state?.archive_year;
+        }
+      });
       
       if (!existujici) {
         const completedSets = parsujScore(z.score);
