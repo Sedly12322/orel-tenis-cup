@@ -103,10 +103,12 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         <h2 style={{ color: isDivak ? '#ffeb3b' : '#333', margin: 0 }}>
           Výsledky z roku {rok}
         </h2>
-        <button onClick={smazatRok} disabled={isDeleting} 
-          style={{ padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
-          {isDeleting ? '⏳' : '🗑️ Smazat rok'}
-        </button>
+        {!isDivak && (
+          <button onClick={smazatRok} disabled={isDeleting} 
+            style={{ padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
+            {isDeleting ? '⏳' : '🗑️ Smazat rok'}
+          </button>
+        )}
       </div>
       
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', flexWrap: 'wrap' }}>
