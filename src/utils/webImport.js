@@ -4,7 +4,6 @@
  */
 
 const WEB_URL = '/api/vysledky';
-const ARCHIV_URL = '/api/archiv';
 
 /**
  * Stáhne HTML pro danou soutěž (60 = dvouhra, 61 = čtyřhra)
@@ -13,20 +12,19 @@ const ARCHIV_URL = '/api/archiv';
  */
 async function stahniHtml(v1, year = null) {
   let body = `v1=${v1}&v2=&v3=`;
-  let url = WEB_URL;
   
   if (year) {
-    url = `${ARCHIV_URL}/${year}/`;
-    body = `v1=${v1}&v2=&v3=`;
+    body = `v1=${v1}&v2=&v3=&year=${year}&show_archive_submit=`;
   }
   
-  const response = await fetch(url, {
+  const response = await fetch(WEB_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     },
     body: body,
+    credentials: 'include', // Důležité pro cookies!
   });
   
   if (!response.ok) {
@@ -37,7 +35,7 @@ async function stahniHtml(v1, year = null) {
 }
 
 /**
- * Vyčistí text z HTML buněk (odstraní &nbsp;, <BR>, extra mezery)
+ * Vyčistí text z HTML buněk
  */
 function vymazHtml(text) {
   return String(text)
@@ -52,7 +50,6 @@ function vymazHtml(text) {
 
 /**
  * Normalizuje jméno páru (pro čtyřhru)
- * "Aleš Anderle\nPetr Němec" -> "Aleš Anderle / Petr Němec"
  */
 function normalizujPar(raw) {
   const jmena = String(raw)
@@ -67,13 +64,9 @@ function normalizujPar(raw) {
  */
 function getTextFromCell(cell) {
   if (!cell) return '';
-  // Použijeme innerHTML abychom zachovali <BR> tagy
   let html = cell.innerHTML;
-  // Odstraníme &nbsp; a <BR> tagy nahradíme za \n
   html = html.replace(/&nbsp;/g, ' ').replace(/<BR\s*\/?>/gi, '\n');
-  // Odstraníme zbylé HTML tagy
   html = html.replace(/<[^>]*>/g, '');
-  // Dekódujme HTML entity
   html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
   return html.trim();
 }
@@ -96,12 +89,10 @@ function parsujTabuldoc(html) {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
     
-    // První řádek: název skupiny
     const headerRow = rows[0];
     const headerCells = headerRow.querySelectorAll('td');
     const nazevSkupiny = getTextFromCell(headerCells[0]);
     
-    // Druhý řádek: jména hráčů (hlavička)
     const playerRow = rows[1];
     const playerCells = playerRow.querySelectorAll('td');
     const hraci = [];
@@ -112,7 +103,6 @@ function parsujTabuldoc(html) {
       }
     }
     
-    // Zbytek řádků: výsledky
     const zapasy = [];
     for (let i = 2; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
@@ -157,13 +147,10 @@ function parsujTabuldoc(html) {
 
 /**
  * Hlavní funkce: stáhne a parsuje data z webu
- * @param {number} v1 - 60 = dvouhra, 61 = čtyřhra
- * @param {number|null} year - ročník (null = aktuální)
  */
 export async function importujDataZWebu(v1 = null, year = null) {
   try {
     if (v1 === 60) {
-      // Pouze dvouhra
       const htmlDvouhra = await stahniHtml(60, year);
       const dataDvouhra = parsujTabuldoc(htmlDvouhra);
       return {
@@ -172,7 +159,6 @@ export async function importujDataZWebu(v1 = null, year = null) {
         ctyrhra: [],
       };
     } else if (v1 === 61) {
-      // Pouze čtyřhra
       const htmlCtyrhra = await stahniHtml(61, year);
       const dataCtyrhra = parsujTabuldoc(htmlCtyrhra);
       return {
@@ -181,7 +167,6 @@ export async function importujDataZWebu(v1 = null, year = null) {
         ctyrhra: dataCtyrhra.ctyrhra,
       };
     } else {
-      // Oba typy (zpětná kompatibilita)
       const htmlDvouhra = await stahniHtml(60, year);
       const dataDvouhra = parsujTabuldoc(htmlDvouhra);
       const htmlCtyrhra = await stahniHtml(61, year);
@@ -200,25 +185,21 @@ export async function importujDataZWebu(v1 = null, year = null) {
 
 /**
  * Konvertuje surová data do formátu pro Supabase
- * Přidává ročník do popisu zápasu
  */
 export function prevedNaZapasy(data, existingMatches = [], year = null) {
   const noveZapasy = [];
   
   const zpracuj = (zapasy) => {
     for (const z of zapasy) {
-      // Zjistíme, jestli zápas už existuje (kontrolujeme i rok!)
       const existujici = existingMatches.find(e => {
         const samePlayers = 
           (e.player1_name === z.player1 && e.player2_name === z.player2) ||
           (e.player1_name === z.player2 && e.player2_name === z.player1);
         if (!samePlayers) return false;
         
-        // Kontrola roku - pokud importujeme archiv, porovnáváme archive_year
         if (year) {
           return e.match_state?.archive_year === year;
         } else {
-          // Aktuální rok - hledáme zápasy bez archive_year
           return !e.match_state?.archive_year;
         }
       });
@@ -260,11 +241,11 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
 }
 
 /**
- * Parsuje score ve formátu "6-4, 4-6, 5-7" nebo "0-0, 0-0, K^4, 2^"
+ * Parsuje score ve formátu "6-4, 4-6, 5-7"
  */
 function parsujScore(scoreStr) {
   const sets = [];
-  if (!scoreStr || scoreStr.includes('K')) return sets; // Kontumace = neprohrál, ale není výsledek
+  if (!scoreStr || scoreStr.includes('K')) return sets;
   
   const casti = scoreStr.split(',').map(s => s.trim());
   
@@ -274,7 +255,6 @@ function parsujScore(scoreStr) {
       let g1 = parseInt(match[1]);
       let g2 = parseInt(match[2]);
       
-      // Oprava pro dlouhé sety (např. 13-11)
       if (g1 > 9 && ![10, 11, 12, 13, 14, 15].includes(g1)) {
         g1 = parseInt(match[1].charAt(0));
       }
