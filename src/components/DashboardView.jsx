@@ -1,7 +1,7 @@
 import React from 'react';
 import { ZapasCard } from './SharedComponents';
-import { KrizovaTabulkaComponent, SkupinaTable } from './TableComponents';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B } from '../utils/constants';
+import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from '../utils/constants';
 
 export const DashboardView = ({
   zapasList, isDivak, otevritZapas, smazatZapas, 
@@ -12,7 +12,8 @@ export const DashboardView = ({
   const neZiveZapasy = zapasList.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 
   const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
   const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
-  const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && z.round === null);
+  const zapasyCtyrhra = neZiveZapasy.filter(z => CTYRHRA_TYMY.includes(z.player1_name) && CTYRHRA_TYMY.includes(z.player2_name));
+  const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z) && z.round === null);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
@@ -69,9 +70,12 @@ export const DashboardView = ({
       </div>
       
       {typTabulky === 'klasicka' ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', marginBottom: '60px' }}>
-          <div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /></div>
-          <div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', marginBottom: '60px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+            <div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} /></div>
+            <div style={{ flex: '1 1 min(100%, 600px)', overflowX: 'auto' }}><SkupinaTable matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} /></div>
+          </div>
+          <CtyrhraSkupinaTable matches={zapasyCtyrhra} tymy={CTYRHRA_TYMY} nazev="Čtyřhra" isDivak={isDivak} />
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', marginBottom: '60px' }}>
@@ -79,7 +83,9 @@ export const DashboardView = ({
           <KrizovaTabulkaComponent matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} />
         </div>
       )}
-      
+
+      <CtyrhraKrizovaTabulka matches={zapasyCtyrhra} tymy={CTYRHRA_TYMY} nazev="Čtyřhra" isDivak={isDivak} />
+
       <div style={{ marginBottom: '50px' }}>
         <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>✅ Zápasy - Skupina A</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>
@@ -93,6 +99,15 @@ export const DashboardView = ({
         </div>
       </div>
       
+      {zapasyCtyrhra.length > 0 && (
+        <div style={{ marginBottom: '50px' }}>
+          <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>🎾 Zápasy - Čtyřhra</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px', marginTop: '20px' }}>
+            {zapasyCtyrhra.map(z => <ZapasCard key={z.id} zapas={z} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} />)}
+          </div>
+        </div>
+      )}
+
       {zapasyOstatni.length > 0 && (
         <div>
           <h2 style={{ borderBottom: isDivak ? '3px solid #333' : '3px solid #ddd', paddingBottom: '10px', fontSize: 'clamp(22px, 4vw, 30px)', color: isDivak ? '#fff' : '#000' }}>🏆 Zápasy - Ostatní (Playoff)</h2>

@@ -41,6 +41,88 @@ export const generovatPavouka = async (zapasList, HRACI_SKUPINA_A, HRACI_SKUPINA
   alert("Pavouk byl úspěšně vygenerován!");
 };
 
+export const generovatCtyrhraPlayoff = async (zapasList, CTYRHRA_TYMY, supabase) => {
+  const odehraneZapasy = zapasList.filter(z => z.status === 'finished');
+  const zapasyCtyrhra = odehraneZapasy.filter(z => CTYRHRA_TYMY.includes(z.player1_name) && CTYRHRA_TYMY.includes(z.player2_name));
+
+  const { serazeni: tab } = vypocitejTabulku(zapasyCtyrhra, CTYRHRA_TYMY);
+
+  if (tab.length < 4) {
+    alert("Pro vygenerování playoff čtyřhry potřebujeme minimálně 4 umístěné páry v tabulce.");
+    return;
+  }
+
+  const vychoziStav = (p1, p2, code) => ({
+    player1_name: p1, player2_name: p2, server: 1,
+    sets_won: { player1: 0, player2: 0 }, completed_sets: [],
+    current_set: { player1_games: 0, player2_games: 0 }, current_game: { player1_points: "0", player2_points: "0" },
+    is_tiebreak: false, game_log: [[], [], []], _history: [],
+    match_code: code
+  });
+
+  // Playoff čtyřhry má vlastní kola (101 = finále, 102 = semifinále), aby se nepomíchalo s dvouhrou (1, 2, 4)
+  const existujiciPlayoff = zapasList.filter(z => [101, 102].includes(z.round));
+  if (existujiciPlayoff.length > 0) {
+    if (!window.confirm("Playoff čtyřhry už existuje. Opravdu chcete starý pavouk smazat a vygenerovat ho úplně znovu?")) return;
+    for (let z of existujiciPlayoff) await supabase.from('matches').delete().eq('id', z.id);
+  }
+
+  const playoffZapasy = [
+    { player1_name: tab[0].jmeno, player2_name: tab[3].jmeno, status: 'planned', round: 102, match_state: vychoziStav(tab[0].jmeno, tab[3].jmeno, 'CSF1') },
+    { player1_name: tab[1].jmeno, player2_name: tab[2].jmeno, status: 'planned', round: 102, match_state: vychoziStav(tab[1].jmeno, tab[2].jmeno, 'CSF2') },
+    { player1_name: "Vítěz CSF1", player2_name: "Vítěz CSF2", status: 'planned', round: 101, match_state: vychoziStav("Vítěz CSF1", "Vítěz CSF2", 'CF1') }
+  ];
+
+  for (const m of playoffZapasy) await supabase.from('matches').insert([m]);
+  alert("Pavouk čtyřhry byl úspěšně vygenerován!");
+};
+
+export const smazatCtyrhraPlayoff = async (zapasList, supabase) => {
+  const playoffZapasy = zapasList.filter(z => [101, 102].includes(z.round));
+  if (playoffZapasy.length === 0) return;
+  if (window.confirm("Opravdu chcete TRVALE smazat všechny zápasy Playoff čtyřhry (Semifinále, Finále)?")) {
+    for (let z of playoffZapasy) await supabase.from('matches').delete().eq('id', z.id);
+    alert("Playoff čtyřhry bylo smazáno.");
+  }
+};
+
+export const posunoutVitezeVCtyrhre = async (supabase) => {
+  const { data: vsechnyZapasy } = await supabase.from('matches').select('*');
+  if (!vsechnyZapasy) return;
+
+  const getVitez = (m) => {
+    if (!m || m.status !== 'finished' || !m.match_state) return null;
+    const s1 = m.match_state.sets_won?.player1 || 0;
+    const s2 = m.match_state.sets_won?.player2 || 0;
+    if (s1 > s2) return m.player1_name;
+    if (s2 > s1) return m.player2_name;
+    return null;
+  };
+
+  const csf1 = vsechnyZapasy.find(z => z.match_state?.match_code === 'CSF1');
+  const csf2 = vsechnyZapasy.find(z => z.match_state?.match_code === 'CSF2');
+  const cf1 = vsechnyZapasy.find(z => z.match_state?.match_code === 'CF1');
+
+  if (!csf1 && !csf2) return;
+
+  const posunDoZapasu = async (cilovyZapas, predchoziZapas1, predchoziZapas2) => {
+    if (!cilovyZapas) return;
+    const v1 = getVitez(predchoziZapas1);
+    const v2 = getVitez(predchoziZapas2);
+    let p1 = cilovyZapas.player1_name; let p2 = cilovyZapas.player2_name;
+
+    if (cilovyZapas.player1_name.includes('Vítěz') && v1) p1 = v1;
+    if (cilovyZapas.player2_name.includes('Vítěz') && v2) p2 = v2;
+
+    if (cilovyZapas.player1_name !== p1 || cilovyZapas.player2_name !== p2) {
+      const newState = { ...cilovyZapas.match_state, player1_name: p1, player2_name: p2 };
+      await supabase.from('matches').update({ player1_name: p1, player2_name: p2, match_state: newState }).eq('id', cilovyZapas.id);
+    }
+  };
+
+  await posunDoZapasu(cf1, csf1, csf2);
+};
+
 export const smazatPlayoff = async (zapasList, supabase) => {
   const playoffZapasy = zapasList.filter(z => [1, 2, 4].includes(z.round));
   if (playoffZapasy.length === 0) return;

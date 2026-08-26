@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase';
+import { CTYRHRA_TYMY } from './utils/constants';
+
+// Normalizace názvu páru - na webu je jméno páru na dvou řádcích (oddělené <BR> -> \n)
+const normalizujPar = (raw) => {
+  const jmena = String(raw).split(/\s*\n\s*|\s*\/\s*/).map(j => j.replace(/^[\s&nbsp]+|[\s&nbsp]+$/g, '')).filter(Boolean);
+  return jmena.join(' / ');
+};
 
 export default function ImportData({ zpetDoMenu }) {
   const [importText, setImportText] = useState('');
@@ -20,16 +27,25 @@ export default function ImportData({ zpetDoMenu }) {
 
     try {
       const rawData = JSON.parse(importText);
-      let groupA = [], groupB = [], currentGroup = 0;
+      let groupA = [], groupB = [], groupC = [];
+      let currentGroup = 0; // 1=A, 2=B, 3=Čtyřhra
 
       for (let i = 0; i < rawData.length; i++) {
         const row = rawData[i];
+        if (row[0] && row[0].includes('Čtyřhra')) { currentGroup = 3; continue; }
         if (row[0] && row[0].includes('Skupina A')) { currentGroup = 1; continue; }
         if (row[0] && row[0].includes('Skupina B')) { currentGroup = 2; continue; }
-        if (row.length < 5 || !parseInt(row[0])) continue; 
-        
+        if (row.length < 5 || !parseInt(row[0])) continue;
+
         if (currentGroup === 1) groupA.push(row);
         if (currentGroup === 2) groupB.push(row);
+        // U čtyřhry musí druhá buňka obsahovat známý pár (vyřadí hlavičkové řádky)
+        if (currentGroup === 3) {
+          const par = normalizujPar(row[1]);
+          if (CTYRHRA_TYMY.includes(par)) {
+            groupC.push([row[0], par, ...row.slice(2)]);
+          }
+        }
       }
 
       const vsichniHraci = [...groupA, ...groupB].map(r => r[1]);
@@ -86,7 +102,7 @@ export default function ImportData({ zpetDoMenu }) {
         return matchInserts;
       };
 
-      const noveZapasy = [...zpracujSkupinu(groupA), ...zpracujSkupinu(groupB)];
+      const noveZapasy = [...zpracujSkupinu(groupA), ...zpracujSkupinu(groupB), ...zpracujSkupinu(groupC)];
       const { data: existujici } = await supabase.from('matches').select('*');
       
       let updatovano = 0; let pridano = 0;

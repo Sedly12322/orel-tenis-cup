@@ -1,4 +1,4 @@
-import { posunoutVitezeVPlayoff } from '../utils/playoffLogic';
+import { posunoutVitezeVPlayoff, posunoutVitezeVCtyrhre } from '../utils/playoffLogic';
 
 export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase) => {
 
@@ -26,6 +26,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     setScore(st);
     await supabase.from('matches').update({ status: 'finished', match_state: st }).eq('id', activeMatchId);
     await posunoutVitezeVPlayoff(supabase);
+    await posunoutVitezeVCtyrhre(supabase);
     zpetDoMenu();
   }
 
@@ -47,6 +48,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
       await posunoutVitezeVPlayoff(supabase);
+    await posunoutVitezeVCtyrhre(supabase);
       zpetDoMenu();
     }
   }
@@ -68,6 +70,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
       await posunoutVitezeVPlayoff(supabase);
+    await posunoutVitezeVCtyrhre(supabase);
       zpetDoMenu();
     }
   }
