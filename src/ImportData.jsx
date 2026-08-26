@@ -71,61 +71,6 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
     }
   };
 
-  // Oprava existujících dat - přiřazení ročníku
-  const opravitRocnik = async (rok) => {
-    if (!window.confirm(`Přiřadit všechny zápasy bez ročníku do roku ${rok}?`)) return;
-    setIsLoading(true);
-    setStatus(`Opravuji data pro rok ${rok}...`);
-    try {
-      // Najdi všechny zápasy s archive_year = rok
-      const { data: zapasy } = await supabase
-        .from('matches')
-        .select('id, player1_name, player2_name, match_state')
-        .filter('match_state.archive_year', 'is', null);
-      
-      if (zapasy && zapasy.length > 0) {
-        const ids = zapasy.map(z => z.id);
-        // Aktualizace po dávkách po 20 (kvůli RLS limitům)
-        for (let i = 0; i < ids.length; i += 20) {
-          const batch = ids.slice(i, i + 20);
-          await supabase
-            .rpc('update_matches_archive_year', { 
-              match_ids: batch, 
-              archive_year: rok 
-            });
-        }
-        setStatus(`✅ Aktualizováno ${ids.length} zápasů do roku ${rok}!`);
-      } else {
-        setStatus('Žádné zápasy k opravě nenalezeny.');
-      }
-      if (onDataChange) onDataChange();
-    } catch (err) {
-      // Fallback - aktualizace jeden po druhém
-      try {
-        const { data: zapasy } = await supabase
-          .from('matches')
-          .select('id, match_state')
-          .filter('match_state.archive_year', 'is', null);
-        
-        if (zapasy) {
-          let count = 0;
-          for (const z of zapasy) {
-            const newState = { ...z.match_state, archive_year: rok };
-            await supabase
-              .from('matches')
-              .update({ match_state: newState })
-              .eq('id', z.id);
-            count++;
-          }
-          setStatus(`✅ Aktualizováno ${count} zápasů do roku ${rok}!`);
-        }
-      } catch (err2) {
-        setStatus(`❌ Chyba: ${err2.message}`);
-      }
-    }
-    setIsLoading(false);
-  };
-
   // Aktualizace existujících dat - přiřazení ročníku 2026 pro aktuální sezónu
   const aktualniRocnik = async () => {
     if (!window.confirm('Přiřadit všechny zápasy bez ročníku do roku 2026 (aktuální)?')) return;
