@@ -28,7 +28,8 @@ export const DashboardView = ({
   otevritNovyZapasModal, typTabulky, setTypTabulky,
   tvMessage, tvMessageInput, setTvMessageInput, ulozitTvZpravu,
   selectedYear,
-  supabase
+  supabase,
+  onDataChange
 }) => {
   const [zobrazeneRok, setZobrazeneRok] = useState('2026');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -54,48 +55,45 @@ export const DashboardView = ({
 
   // Smazání všech zápasů pro vybraný ročník
   const smazatZapasyProRok = async (rok) => {
-    constrokText = rok === '2026' ? 'aktuálního roku' : `roku ${rok}`;
+    const rokText = rok === '2026' ? 'aktuálního roku' : `roku ${rok}`;
     if (!window.confirm(`🚨 Smazat VŠECHNY zápasy ${rokText}? Nevratné!`)) return;
     
     setIsDeleting(true);
     try {
       let idsToDelete = [];
       
-      if (rok === '2026') {
-        // Smazat bez archive_year
-        const { data } = await supabase
-          .from('matches')
-          .select('id, match_state');
-        if (data) {
-          idsToDelete = data
+      // Najdeme ID k smazání
+      const { data: vsechnyZapasy } = await supabase
+        .from('matches')
+        .select('id, match_state');
+      
+      if (vsechnyZapasy) {
+        if (rok === '2026') {
+          idsToDelete = vsechnyZapasy
             .filter(z => !z.match_state || !z.match_state.archive_year)
             .map(z => z.id);
-        }
-      } else {
-        // Smazat s archive_year
-        const { data } = await supabase
-          .from('matches')
-          .select('id, match_state');
-        if (data) {
-          idsToDelete = data
+        } else {
+          idsToDelete = vsechnyZapasy
             .filter(z => z.match_state && z.match_state.archive_year && z.match_state.archive_year.toString() === rok)
             .map(z => z.id);
         }
-      }
-      
-      if (idsToDelete.length > 0) {
-        // Mazání po dávkách po 50
-        for (let i = 0; i < idsToDelete.length; i += 50) {
-          const batch = idsToDelete.slice(i, i + 50);
-          const { error } = await supabase
-            .from('matches')
-            .delete()
-            .in('id', batch);
-          if (error) throw new Error(error.message);
+        
+        if (idsToDelete.length > 0) {
+          // Mazání po dávkách po 50
+          for (let i = 0; i < idsToDelete.length; i += 50) {
+            const batch = idsToDelete.slice(i, i + 50);
+            const { error } = await supabase
+              .from('matches')
+              .delete()
+              .in('id', batch);
+            if (error) throw new Error(error.message);
+          }
+          alert(`✅ Smazáno ${idsToDelete.length} zápasů ${rokText}!`);
+          // Refresh dat
+          if (onDataChange) await onDataChange();
+        } else {
+          alert(`Žádné zápasy pro ${rokText} nenalezeny.`);
         }
-        alert(`✅ Smazáno ${idsToDelete.length} zápasů ${rokText}!`);
-      } else {
-        alert(`Žádné zápasy pro ${rokText} nenalezeny.`);
       }
     } catch (err) {
       alert(`❌ Chyba při mazání: ${err.message}`);
