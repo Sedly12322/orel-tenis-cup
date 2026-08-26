@@ -165,20 +165,20 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
                     const isP1 = zapas.player1_name === hrac;
                     const s1 = zapas.match_state?.sets_won?.player1 || 0;
                     const s2 = zapas.match_state?.sets_won?.player2 || 0;
-                    const mys setsWon = isP1 ? s1 : s2;
+                    const mySets = isP1 ? s1 : s2;
                     const enemySets = isP1 ? s2 : s1;
                     
                     z++;
-                    if (mysets > enemySets) {
+                    if (mySets > enemySets) {
                       v++;
-                      if (mysets === 2 && enemySets === 0) body += 4;
-                      else if (mysets === 2 && enemySets === 1) body += 3;
+                      if (mySets === 2 && enemySets === 0) body += 4;
+                      else if (mySets === 2 && enemySets === 1) body += 3;
                       else body += 2;
                     } else {
-                      if (enemySets === 2 && mysets === 0) body += 0;
+                      if (enemySets === 2 && mySets === 0) body += 0;
                       else body += 1;
                     }
-                    setyW += mysets;
+                    setyW += mySets;
                     setyL += enemySets;
                   });
                   
@@ -229,7 +229,7 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
                 </tr>
               </thead>
               <tbody>
-                {hraciCtyrhta.map(par => {
+                {hraciCtyrhra.map(par => {
                   const zapasyCtyrhu = ctyrhra.filter(z => z.player1_name === par || z.player2_name === par);
                   let z = 0, v = 0, setyW = 0, setyL = 0, body = 0;
                   
