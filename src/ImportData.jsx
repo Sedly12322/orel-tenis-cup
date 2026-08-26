@@ -65,7 +65,7 @@ function parsujTabulkuHTML(html) {
   const doc = parser.parseFromString(html, 'text/html');
   const tables = doc.querySelectorAll('table.vysledky');
   
-  const vysledky = { skupinaA: [], skupinaB: [], ctyrhra: [] };
+  const vysledky = { skupinaA: [], skupinaB: [], finalek: [] };
   
   tables.forEach((table) => {
     const rows = table.querySelectorAll('tr');
@@ -99,18 +99,12 @@ function parsujTabulkuHTML(html) {
       }
     }
     
-    if (nazevSkupiny.toLowerCase().includes('čtyřhra')) {
-      vysledky.ctyrhra = zapasy;
-    } else if (nazevSkupiny.toLowerCase().includes('skupina a')) {
+    if (nazevSkupiny.includes('Finále')) {
+      vysledky.finalek = zapasy;
+    } else if (nazevSkupiny.includes('skupina A') || nazevSkupiny.includes('Skupina A')) {
       vysledky.skupinaA = zapasy;
-    } else if (nazevSkupiny.toLowerCase().includes('skupina b')) {
+    } else if (nazevSkupiny.includes('skupina B') || nazevSkupiny.includes('Skupina B')) {
       vysledky.skupinaB = zapasy;
-    } else if (nazevSkupiny.toLowerCase().includes('finále')) {
-      // Finále - přidat do skupiny A
-      vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
-    } else {
-      // Pokud není jasné o kterou skupinu jde, přidat do skupiny A
-      vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
     }
   });
   
