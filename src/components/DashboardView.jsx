@@ -66,6 +66,8 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
 
   // Extrakce unikátních hráčů z dat
+  const zapasyDvouhra = useMemo(() => [...zapasySkupinaA, ...zapasySkupinaB, ...zapasyFinale], [zapasySkupinaA, zapasySkupinaB, zapasyFinale]);
+  
   const hraciDvouhra = useMemo(() => {
     const hraci = new Set();
     zapasyDvouhra.forEach(z => {
