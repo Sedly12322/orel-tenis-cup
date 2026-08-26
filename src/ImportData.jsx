@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase';
 import { importujDataZWebu, prevedNaZapasy } from './utils/webImport';
-import { jeCtyrhraPar } from './utils/constants';
+import { jeCtyrhraPar, HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from './utils/constants';
 
 const RODNICI = [
   { rok: 2025, popis: '17. ročník - 2025' },
@@ -69,6 +69,125 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Oprava existujících dat - přiřazení ročníku
+  const opravitRocnik = async (rok) => {
+    if (!window.confirm(`Přiřadit všechny zápasy bez ročníku do roku ${rok}?`)) return;
+    setIsLoading(true);
+    setStatus(`Opravuji data pro rok ${rok}...`);
+    try {
+      // Najdi všechny zápasy s archive_year = rok
+      const { data: zapasy } = await supabase
+        .from('matches')
+        .select('id, player1_name, player2_name, match_state')
+        .filter('match_state.archive_year', 'is', null);
+      
+      if (zapasy && zapasy.length > 0) {
+        const ids = zapasy.map(z => z.id);
+        // Aktualizace po dávkách po 20 (kvůli RLS limitům)
+        for (let i = 0; i < ids.length; i += 20) {
+          const batch = ids.slice(i, i + 20);
+          await supabase
+            .rpc('update_matches_archive_year', { 
+              match_ids: batch, 
+              archive_year: rok 
+            });
+        }
+        setStatus(`✅ Aktualizováno ${ids.length} zápasů do roku ${rok}!`);
+      } else {
+        setStatus('Žádné zápasy k opravě nenalezeny.');
+      }
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      // Fallback - aktualizace jeden po druhém
+      try {
+        const { data: zapasy } = await supabase
+          .from('matches')
+          .select('id, match_state')
+          .filter('match_state.archive_year', 'is', null);
+        
+        if (zapasy) {
+          let count = 0;
+          for (const z of zapasy) {
+            const newState = { ...z.match_state, archive_year: rok };
+            await supabase
+              .from('matches')
+              .update({ match_state: newState })
+              .eq('id', z.id);
+            count++;
+          }
+          setStatus(`✅ Aktualizováno ${count} zápasů do roku ${rok}!`);
+        }
+      } catch (err2) {
+        setStatus(`❌ Chyba: ${err2.message}`);
+      }
+    }
+    setIsLoading(false);
+  };
+
+  // Aktualizace existujících dat - přiřazení ročníku 2026 pro aktuální sezónu
+  const aktualniRocnik = async () => {
+    if (!window.confirm('Přiřadit všechny zápasy bez ročníku do roku 2026 (aktuální)?')) return;
+    setIsLoading(true);
+    let count = 0;
+    try {
+      const { data: zapasy } = await supabase
+        .from('matches')
+        .select('id, match_state')
+        .is('match_state.archive_year', null);
+      
+      if (zapasy && zapasy.length > 0) {
+        for (const z of zapasy) {
+          const newState = { ...z.match_state, archive_year: 2026 };
+          await supabase.from('matches').update({ match_state: newState }).eq('id', z.id);
+          count++;
+        }
+        setStatus(`✅ Aktualizováno ${count} zápasů (nastaveno archive_year: 2026)!`);
+      } else {
+        setStatus('Žádné zápasy bez ročníku nenalezeny.');
+      }
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      setStatus(`❌ Chyba: ${err.message}`);
+    }
+    setIsLoading(false);
+  };
+
+  // Aktualizace existujících dat - oprava ročníku podle jmen hráčů
+  const opravitRocnik = async () => {
+    if (!window.confirm('Opravit ročníky všech zápasů podle seznamu hráčů?')) return;
+    setIsLoading(true);
+    let count2026 = 0;
+    let count2025 = 0;
+    try {
+      const { data: zapasy } = await supabase
+        .from('matches')
+        .select('id, player1_name, player2_name, match_state');
+      
+      if (zapasy) {
+        const allCurrentPlayers = [...HRACI_SKUPINA_A, ...HRACI_SKUPINA_B];
+        
+        for (const z of zapasy) {
+          const isCurrentYear = allCurrentPlayers.includes(z.player1_name) || allCurrentPlayers.includes(z.player2_name);
+          const newArchiveYear = isCurrentYear ? null : 2025;
+          
+          // Only update if different
+          if (z.match_state?.archive_year !== newArchiveYear) {
+            const newState = { ...z.match_state, archive_year: newArchiveYear };
+            await supabase.from('matches').update({ match_state: newState }).eq('id', z.id);
+            if (isCurrentYear) count2026++; else count2025++;
+          }
+        }
+        setStatus(`✅ Opraveno: ${count2026} pro rok 2026, ${count2025} pro archiv!`);
+      } else {
+        setStatus('Žádné zápasy nenalezeny.');
+      }
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      setStatus(`❌ Chyba: ${err.message}`);
+    }
+    setIsLoading(false);
   };
 
   const smazatVse = async () => {
@@ -171,9 +290,13 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
               style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
               🗑️ Smazat všechny zápasy dvouhry
             </button>
-            <button onClick={smazatVse} disabled={isLoading}
-              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#8b0000', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              💥 Smazat VŠECHNY zápasy
+            <button onClick={aktualniRocnik} disabled={isLoading}
+              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#007bff', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+              🔧 Opravit na rok 2026
+            </button>
+            <button onClick={opravitRocnik} disabled={isLoading}
+              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#ffc107', color: '#333', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+              🔩 Opravit ročníky
             </button>
           </div>
         </div>
