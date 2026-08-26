@@ -13,28 +13,38 @@ function RocnikOTCLTabulka({ matches, nazev, isDivak, rok }) {
       const s1 = z.match_state?.sets_won?.player1 || 0;
       const s2 = z.match_state?.sets_won?.player2 || 0;
       
+      // Player 1
       if (s[z.player1_name]) {
         s[z.player1_name].z++;
         s[z.player1_name].setyW += s1;
         s[z.player1_name].setyL += s2;
         if (s1 > s2) {
           s[z.player1_name].v++;
-          s[z.player1_name].body += (s1 === 2 && s2 === 0) ? 4 : (s1 === 2 && s2 === 1) ? 3 : 2;
+          if (s1 === 2 && s2 === 0) s[z.player1_name].body += 4;
+          else if (s1 === 2 && s2 === 1) s[z.player1_name].body += 3;
+          else s[z.player1_name].body += 2;
         } else {
-          s[z.player1_name].body += (s2 === 2 && s1 === 0) ? 0 : 1;
+          if (s2 === 2 && s1 === 0) s[z.player1_name].body += 1;
+          else if (s2 === 2 && s1 === 1) s[z.player1_name].body += 2;
+          else s[z.player1_name].body += 1;
           s[z.player1_name].p++;
         }
       }
       
+      // Player 2
       if (s[z.player2_name]) {
         s[z.player2_name].z++;
         s[z.player2_name].setyW += s2;
         s[z.player2_name].setyL += s1;
         if (s2 > s1) {
           s[z.player2_name].v++;
-          s[z.player2_name].body += (s2 === 2 && s1 === 0) ? 4 : (s2 === 2 && s1 === 1) ? 3 : 2;
+          if (s2 === 2 && s1 === 0) s[z.player2_name].body += 4;
+          else if (s2 === 2 && s1 === 1) s[z.player2_name].body += 3;
+          else s[z.player2_name].body += 2;
         } else {
-          s[z.player2_name].body += (s1 === 2 && s2 === 0) ? 0 : 1;
+          if (s1 === 2 && s2 === 0) s[z.player2_name].body += 1;
+          else if (s1 === 2 && s2 === 1) s[z.player2_name].body += 2;
+          else s[z.player2_name].body += 1;
           s[z.player2_name].p++;
         }
       }
