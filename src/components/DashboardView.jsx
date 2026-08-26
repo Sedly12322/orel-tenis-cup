@@ -59,9 +59,50 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
     );
   }
 
-  // Rozdělení na dvouhru a čtyrhru
-  const zapasyDvouhra = zapasy.filter(z => !jeCtyrhraPar(z.player1_name) && !jeCtyrhraPar(z.player2_name));
-  const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
+  // Rozdělení na Finále, Skupina A, Skupina B podle hráčů
+  // Finále = hráči z obou skupin (nejlepší 2 z každé)
+  // Skupina A = hráči z archivní Skupiny A
+  // Skupina B = hráči z archivní Skupiny B
+  const { zapasyFinalek, zapasySkupinaA, zapasySkupinaB } = useMemo(() => {
+    // Unikátní hráči
+    const allPlayers = new Set();
+    zapasy.forEach(z => {
+      allPlayers.add(z.player1_name);
+      allPlayers.add(z.player2_name);
+    });
+    
+    // Rozděl na skupiny podle toho, z jakého zápasu jsou
+    const allPlayersArray = Array.from(allPlayers).sort();
+    const half = Math.floor(allPlayersArray.length / 2);
+    
+    const skupinaA = new Set(allPlayersArray.slice(0, half));
+    const skupinaB = new Set(allPlayersArray.slice(half));
+    
+    const zapasySkupinaAArr = [];
+    const zapasySkupinaBArr = [];
+    const zapasyFinalekArr = [];
+    
+    zapasy.forEach(z => {
+      const p1A = skupinaA.has(z.player1_name);
+      const p2A = skupinaA.has(z.player2_name);
+      const p1B = skupinaB.has(z.player1_name);
+      const p2B = skupinaB.has(z.player2_name);
+      
+      if (p1A && p2A) {
+        zapasySkupinaAArr.push(z);
+      } else if (p1B && p2B) {
+        zapasySkupinaBArr.push(z);
+      } else {
+        zapasyFinalekArr.push(z);
+      }
+    });
+    
+    return {
+      zapasyFinalek: zapasyFinalekArr,
+      zapasySkupinaA: zapasySkupinaAArr,
+      zapasySkupinaB: zapasySkupinaBArr
+    };
+  }, [zapasy]);
 
   // Extrakce unikátních hráčů z dat
   const hraciDvouhra = useMemo(() => {
@@ -94,19 +135,28 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         </button>
       </div>
       
-      {zapasyDvouhra.length > 0 && (
+      {zapasyFinalek.length > 0 && (
         <RocnikOTCLTabulka 
-          matches={zapasyDvouhra} 
-          nazev="Dvouhra muži" 
+          matches={zapasyFinalek} 
+          nazev="Dvouhra muži - Finále" 
           isDivak={isDivak} 
           rok={rok} 
         />
       )}
       
-      {zapasyCtyrhra.length > 0 && (
+      {zapasySkupinaA.length > 0 && (
         <RocnikOTCLTabulka 
-          matches={zapasyCtyrhra} 
-          nazev="Čtyřhra" 
+          matches={zapasySkupinaA} 
+          nazev="Dvouhra muži - Skupina A" 
+          isDivak={isDivak} 
+          rok={rok} 
+        />
+      )}
+      
+      {zapasySkupinaB.length > 0 && (
+        <RocnikOTCLTabulka 
+          matches={zapasySkupinaB} 
+          nazev="Dvouhra muži - Skupina B" 
           isDivak={isDivak} 
           rok={rok} 
         />
