@@ -25,14 +25,63 @@ export const generujHlaseni = (score, minulyStav) => {
 
 export const vypocitejTabulku = (matches, hraciList) => {
   let staty = {};
+  
+  // Normalizace jmen pro porovnání
+  const normalize = (s) => s.toLowerCase()
+    .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
+    .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
+    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
+    .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
+    .replace(/[ľ]/g, 'l').replace(/[ą]/g, 'a').replace(/[ę]/g, 'e')
+    .replace(/[ů]/g, 'u').replace(/[yý]/g, 'y').replace(/[ł]/g, 'l')
+    .replace(/[^a-z0-9\s\/]/g, '').replace(/\s+/g, ' ').trim();
+  
+  // Vytvoříme mapování normalizované jméno → původní jméno z hraciList
+  const jmenoMap = {};
   hraciList.forEach(h => {
     staty[h] = { jmeno: h, z: 0, v: 0, p: 0, setsW: 0, setsL: 0, gamesW: 0, gamesL: 0, body: 0, zapasy: [] };
+    jmenoMap[normalize(h)] = h;
   });
+
+  // Najde původní jméno v hraciList podle normalizovaného jména
+  const najdiJmeno = (jmeno) => {
+    const norm = normalize(jmeno);
+    if (jmenoMap[norm]) return jmenoMap[norm];
+    
+    // Pokus o shodu podle příjmení a iniciály
+    for (const h of hraciList) {
+      const castiJmeno = norm.split('/').map(s => s.trim());
+      const castiPar = normalize(h).split('/').map(s => s.trim());
+      
+      if (castiJmeno.length === castiPar.length) {
+        let shodne = true;
+        for (let i = 0; i < castiJmeno.length; i++) {
+          const slovaJmeno = castiJmeno[i].split(' ').filter(Boolean);
+          const slovaPar = castiPar[i].split(' ').filter(Boolean);
+          
+          if (slovaJmeno.length === 0 || slovaPar.length === 0) continue;
+          
+          const prijmeniJmeno = slovaJmeno[slovaJmeno.length - 1];
+          const prijmeniPar = slovaPar[slovaPar.length - 1];
+          const inicialaJmeno = slovaJmeno[0].charAt(0);
+          const inicialaPar = slovaPar[0].charAt(0);
+          
+          if (prijmeniJmeno !== prijmeniPar || inicialaJmeno !== inicialaPar) {
+            shodne = false;
+            break;
+          }
+        }
+        if (shodne) return h;
+      }
+    }
+    return jmeno; // Fallback
+  };
 
   matches.forEach(m => {
     if (m.status === 'finished' && m.match_state) {
-      const p1 = m.player1_name;
-      const p2 = m.player2_name;
+      // Najdeme normalizovaná jména v hraciList
+      const p1 = najdiJmeno(m.player1_name);
+      const p2 = najdiJmeno(m.player2_name);
       if (!staty[p1] || !staty[p2]) return;
 
       const s1 = m.match_state.sets_won.player1 || 0;

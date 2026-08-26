@@ -1,5 +1,5 @@
 import React from 'react';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from '../utils/constants';
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
 
 export const NewMatchModal = ({ showNewMatchModal, setShowNewMatchModal, newMatchGroup, setNewMatchGroup, newMatchP1, setNewMatchP1, newMatchP2, setNewMatchP2, zapasList, spustitNovyZapas }) => {
   if (!showNewMatchModal) return null;

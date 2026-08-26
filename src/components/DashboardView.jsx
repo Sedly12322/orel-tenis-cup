@@ -1,7 +1,7 @@
 import React from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from '../utils/constants';
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
 
 export const DashboardView = ({
   zapasList, isDivak, otevritZapas, smazatZapas, 
@@ -12,7 +12,7 @@ export const DashboardView = ({
   const neZiveZapasy = zapasList.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 
   const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
   const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
-  const zapasyCtyrhra = neZiveZapasy.filter(z => CTYRHRA_TYMY.includes(z.player1_name) && CTYRHRA_TYMY.includes(z.player2_name));
+  const zapasyCtyrhra = neZiveZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name));
   const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z) && z.round === null);
 
   return (

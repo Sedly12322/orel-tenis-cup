@@ -32,26 +32,28 @@ function App() {
   const [tvMessageInput, setTvMessageInput] = useState('');
 
   useEffect(() => {
-    const handleHashChange = () => { if (window.location.hash === '#tv') setView('tv_kiosk'); };
+    const handleHashChange = () => { if (window.location.hash === '#tv') setView('tv_kiosk'); }
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  useEffect(() => {
-    const nactiZapasy = async () => {
-      const { data } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
-      if (data) {
-        const msgMatch = data.find(z => z.status === 'tv_message');
-        if (msgMatch && msgMatch.match_state?.text) {
-          setTvMessage(msgMatch.match_state.text);
-          setTvMessageInput(prev => prev === '' ? msgMatch.match_state.text : prev);
-        } else {
-          setTvMessage('');
-        }
-        setZapasList(data.filter(z => z.status !== 'tv_message'));
+  // Extrahovaná funkce pro načtení zápasů (dostupná i pro děti)
+  const nactiZapasy = async () => {
+    const { data } = await supabase.from('matches').select('*').order('created_at', { ascending: false })
+    if (data) {
+      const msgMatch = data.find(z => z.status === 'tv_message');
+      if (msgMatch && msgMatch.match_state?.text) {
+        setTvMessage(msgMatch.match_state.text);
+        setTvMessageInput(prev => prev === '' ? msgMatch.match_state.text : prev);
+      } else {
+        setTvMessage('');
       }
+      setZapasList(data.filter(z => z.status !== 'tv_message'));
     }
+  };
+
+  useEffect(() => {
     const nactiHrace = async () => {
       const { data } = await supabase.from('players').select('*').order('name', { ascending: true })
       if (data) setHraciList(data)
@@ -135,7 +137,7 @@ function App() {
 
   const matchActions = useMatchActions(score, setScore, activeMatchId, zapasList, setZapasList, zpetDoMenu, supabase);
 
-  if (view === 'import' && !isDivak) return <ImportData zpetDoMenu={zpetDoMenu} />
+  if (view === 'import' && !isDivak) return <ImportData zpetDoMenu={zpetDoMenu} onDataChange={nactiZapasy} />
   if (view === 'players' && !isDivak) return <PlayersView hraciList={hraciList} pridatHrace={pridatHrace} smazatHrace={smazatHrace} novyHracJmeno={novyHracJmeno} setNovyHracJmeno={setNovyHracJmeno} zpetDoMenu={zpetDoMenu} />
   if (view === 'bracket') return <BracketView zapasList={zapasList} isDivak={isDivak} zpetDoMenu={zpetDoMenu} otevritZapas={otevritZapas} />
 
@@ -193,7 +195,7 @@ function App() {
         zapasList={zapasList} isDivak={isDivak} otevritZapas={otevritZapas} smazatZapas={smazatZapas} 
         otevritNovyZapasModal={() => {setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);}} 
         typTabulky={typTabulky} setTypTabulky={setTypTabulky} 
-        tvMessage={tvMessage} // <--- PŘEDÁNÍ NAČTENÉ ZPRÁVY
+        tvMessage={tvMessage}
         tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu} 
       />
       

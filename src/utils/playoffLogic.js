@@ -41,9 +41,9 @@ export const generovatPavouka = async (zapasList, HRACI_SKUPINA_A, HRACI_SKUPINA
   alert("Pavouk byl úspěšně vygenerován!");
 };
 
-export const generovatCtyrhraPlayoff = async (zapasList, CTYRHRA_TYMY, supabase) => {
+export const generovatCtyrhraPlayoff = async (zapasList, CTYRHRA_TYMY, jeCtyrhraPar, supabase) => {
   const odehraneZapasy = zapasList.filter(z => z.status === 'finished');
-  const zapasyCtyrhra = odehraneZapasy.filter(z => CTYRHRA_TYMY.includes(z.player1_name) && CTYRHRA_TYMY.includes(z.player2_name));
+  const zapasyCtyrhra = odehraneZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name));
 
   const { serazeni: tab } = vypocitejTabulku(zapasyCtyrhra, CTYRHRA_TYMY);
 

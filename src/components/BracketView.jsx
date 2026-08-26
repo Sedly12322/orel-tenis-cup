@@ -2,12 +2,12 @@ import React from 'react';
 import { BracketMatchCard } from './SharedComponents';
 import { generovatPavouka, smazatPlayoff, generovatCtyrhraPlayoff, smazatCtyrhraPlayoff } from '../utils/playoffLogic';
 import { supabase } from '../supabase';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from '../utils/constants';
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
 
 export const BracketView = ({ zapasList, isDivak, zpetDoMenu, otevritZapas }) => {
   const handleGenerovat = () => generovatPavouka(zapasList, HRACI_SKUPINA_A, HRACI_SKUPINA_B, supabase);
   const handleSmazat = () => smazatPlayoff(zapasList, supabase);
-  const handleGenerovatCtyrhra = () => generovatCtyrhraPlayoff(zapasList, CTYRHRA_TYMY, supabase);
+  const handleGenerovatCtyrhra = () => generovatCtyrhraPlayoff(zapasList, CTYRHRA_TYMY, jeCtyrhraPar, supabase);
   const handleSmazatCtyrhra = () => smazatCtyrhraPlayoff(zapasList, supabase);
 
   const getMatch = (code) => zapasList.find(z => z.match_state?.match_code === code);

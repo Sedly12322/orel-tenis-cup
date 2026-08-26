@@ -65,12 +65,30 @@ export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev, isDivak }) 
   )
 }
 
+import { jeCtyrhraPar } from '../utils/constants';
+
 // Čtyřhra - pár je uložen jako "Jméno1 / Jméno2" a v tabulce se zobrazuje na dvou řádcích
 export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
   const { staty } = vypocitejTabulku(matches, tymy);
 
   const getScoreText = (radkovyTym, sloupcovyTym) => {
-    const match = matches.find(m => m.status === 'finished' && ((m.player1_name === radkovyTym && m.player2_name === sloupcovyTym) || (m.player1_name === sloupcovyTym && m.player2_name === radkovyTym)));
+    // Najdeme zápas s odpovídajícími týmy (podporujeme zkrácená i plná jména)
+    const match = matches.find(m => {
+      if (m.status !== 'finished') return false;
+      const p1 = m.player1_name;
+      const p2 = m.player2_name;
+      
+      // Porovnání s tímto týmem
+      const shodujeSe = (zapasJmeno, tym) => {
+        if (zapasJmeno === tym) return true;
+        // Zkusíme normalizované porovnání
+        return jeCtyrhraPar(zapasJmeno) && jeCtyrhraPar(tym);
+      };
+      
+      return (shodujeSe(p1, radkovyTym) && shodujeSe(p2, sloupcovyTym)) || 
+             (shodujeSe(p1, sloupcovyTym) && shodujeSe(p2, radkovyTym));
+    });
+    
     if (!match || !match.match_state || !match.match_state.completed_sets) return "";
 
     let text = match.match_state.completed_sets.map(set => {
