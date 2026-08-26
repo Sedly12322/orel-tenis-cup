@@ -4,18 +4,29 @@
  */
 
 const WEB_URL = '/api/vysledky';
+const ARCHIV_URL = '/api/archiv';
 
 /**
  * Stáhne HTML pro danou soutěž (60 = dvouhra, 61 = čtyřhra)
+ * @param {number} v1 - 60 = dvouhra, 61 = čtyřhra
+ * @param {number|null} year - ročník (null = aktuální)
  */
-async function stahniHtml(v1) {
-  const response = await fetch(WEB_URL, {
+async function stahniHtml(v1, year = null) {
+  let body = `v1=${v1}&v2=&v3=`;
+  let url = WEB_URL;
+  
+  if (year) {
+    url = `${ARCHIV_URL}/${year}/`;
+    body = `v1=${v1}&v2=&v3=`;
+  }
+  
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     },
-    body: `v1=${v1}&v2=&v3=`,
+    body: body,
   });
   
   if (!response.ok) {
@@ -147,12 +158,13 @@ function parsujTabuldoc(html) {
 /**
  * Hlavní funkce: stáhne a parsuje data z webu
  * @param {number} v1 - 60 = dvouhra, 61 = čtyřhra
+ * @param {number|null} year - ročník (null = aktuální)
  */
-export async function importujDataZWebu(v1 = null) {
+export async function importujDataZWebu(v1 = null, year = null) {
   try {
     if (v1 === 60) {
       // Pouze dvouhra
-      const htmlDvouhra = await stahniHtml(60);
+      const htmlDvouhra = await stahniHtml(60, year);
       const dataDvouhra = parsujTabuldoc(htmlDvouhra);
       return {
         skupinaA: dataDvouhra.skupinaA,
@@ -161,7 +173,7 @@ export async function importujDataZWebu(v1 = null) {
       };
     } else if (v1 === 61) {
       // Pouze čtyřhra
-      const htmlCtyrhra = await stahniHtml(61);
+      const htmlCtyrhra = await stahniHtml(61, year);
       const dataCtyrhra = parsujTabuldoc(htmlCtyrhra);
       return {
         skupinaA: [],
@@ -170,9 +182,9 @@ export async function importujDataZWebu(v1 = null) {
       };
     } else {
       // Oba typy (zpětná kompatibilita)
-      const htmlDvouhra = await stahniHtml(60);
+      const htmlDvouhra = await stahniHtml(60, year);
       const dataDvouhra = parsujTabuldoc(htmlDvouhra);
-      const htmlCtyrhra = await stahniHtml(61);
+      const htmlCtyrhra = await stahniHtml(61, year);
       const dataCtyrhra = parsujTabuldoc(htmlCtyrhra);
       return {
         skupinaA: dataDvouhra.skupinaA,
@@ -188,8 +200,9 @@ export async function importujDataZWebu(v1 = null) {
 
 /**
  * Konvertuje surová data do formátu pro Supabase
+ * Přidává ročník do popisu zápasu
  */
-export function prevedNaZapasy(data, existingMatches = []) {
+export function prevedNaZapasy(data, existingMatches = [], year = null) {
   const noveZapasy = [];
   
   const zpracuj = (zapasy) => {
@@ -213,6 +226,7 @@ export function prevedNaZapasy(data, existingMatches = []) {
           player2_name: z.player2,
           status: 'finished',
           round: null,
+          year: year, // Přidáváme ročník
           match_state: {
             player1_name: z.player1,
             player2_name: z.player2,

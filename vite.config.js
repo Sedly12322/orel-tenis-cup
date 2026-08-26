@@ -18,6 +18,18 @@ export default defineConfig({
             proxyReq.setHeader('Referer', 'https://orellichnov.cz/otcl/vysledky/');
           });
         }
+      },
+      '/api/archiv': {
+        target: 'https://orellichnov.cz',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/archiv/, '/otcl/archiv'),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            proxyReq.setHeader('Referer', 'https://orellichnov.cz/otcl/archiv/');
+          });
+        }
       }
     }
   }

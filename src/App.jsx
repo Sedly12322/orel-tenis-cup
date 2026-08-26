@@ -20,6 +20,7 @@ function App() {
   const [hraciList, setHraciList] = useState([]);
   const [novyHracJmeno, setNovyHracJmeno] = useState('');
   const [typTabulky, setTypTabulky] = useState('krizova');
+  const [selectedYear, setSelectedYear] = useState(2026);
   
   const [score, setScore] = useState(null);
 
@@ -196,7 +197,8 @@ function App() {
         otevritNovyZapasModal={() => {setNewMatchGroup('A'); setNewMatchP1(''); setNewMatchP2(''); setShowNewMatchModal(true);}} 
         typTabulky={typTabulky} setTypTabulky={setTypTabulky} 
         tvMessage={tvMessage}
-        tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu} 
+        tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu}
+        selectedYear={selectedYear}
       />
       
       <NewMatchModal showNewMatchModal={showNewMatchModal} setShowNewMatchModal={setShowNewMatchModal} newMatchGroup={newMatchGroup} setNewMatchGroup={setNewMatchGroup} newMatchP1={newMatchP1} setNewMatchP1={setNewMatchP1} newMatchP2={newMatchP2} setNewMatchP2={setNewMatchP2} zapasList={zapasList} spustitNovyZapas={spustitNovyZapas} />

@@ -1,15 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
 
+const RODNICI = [
+  { rok: 2025, popis: '17. ročník - 2025' },
+  { rok: 2024, popis: '16. ročník - 2024' },
+  { rok: 2023, popis: '15. ročník - 2023' },
+  { rok: 2022, popis: '14. ročník - 2022' },
+  { rok: 2021, popis: '13. ročník - 2021' },
+  { rok: 2020, popis: '12. ročník - 2020' },
+  { rok: 2019, popis: '11. ročník - 2019' },
+  { rok: 2018, popis: '10. ročník - 2018' },
+  { rok: 2017, popis: '9. ročník - 2017' },
+  { rok: 2016, popis: '8. ročník - 2016' },
+  { rok: 2015, popis: '7. ročník - 2015' },
+  { rok: 2014, popis: '6. ročník - 2014' },
+  { rok: 2013, popis: '5. ročník - 2013' },
+  { rok: 2012, popis: '4. ročník - 2012' },
+  { rok: 2011, popis: '3. ročník - 2011' },
+  { rok: 2010, popis: '2. ročník - 2010' },
+  { rok: 2009, popis: '1. ročník - 2009' },
+];
+
 export const DashboardView = ({
   zapasList, isDivak, otevritZapas, smazatZapas, 
   otevritNovyZapasModal, typTabulky, setTypTabulky,
-  tvMessage, tvMessageInput, setTvMessageInput, ulozitTvZpravu
+  tvMessage, tvMessageInput, setTvMessageInput, ulozitTvZpravu,
+  selectedYear
 }) => {
-  const liveZapasy = zapasList.filter(z => z.status === 'live');
-  const neZiveZapasy = zapasList.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 
+  const [zobrazeneRok, setZobrazeneRok] = useState('2026');
+
+  // Filtrování podle roku
+  const filtrovaneZapasy = zobrazeneRok === '2026'
+    ? zapasList
+    : zapasList.filter(z => z.year && z.year.toString() === zobrazeneRok);
+
+  const liveZapasy = filtrovaneZapasy.filter(z => z.status === 'live');
+  const neZiveZapasy = filtrovaneZapasy.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 
   const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
   const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
   const zapasyCtyrhra = neZiveZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name));
@@ -18,6 +46,21 @@ export const DashboardView = ({
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
       
+      {/* Výběr roku */}
+      <div style={{ marginBottom: '30px', textAlign: 'center', background: isDivak ? '#222' : '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+        <label style={{ fontWeight: 'bold', marginRight: '10px', color: isDivak ? '#fff' : '#333' }}>📅 Ročník: </label>
+        <select 
+          value={zobrazeneRok} 
+          onChange={(e) => setZobrazeneRok(e.target.value)}
+          style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer' }}
+        >
+          <option value="2026">18. ročník - 2026 (aktuální)</option>
+          {RODNICI.map(r => (
+            <option key={r.rok} value={r.rok}>{r.popis}</option>
+          ))}
+        </select>
+      </div>
+
       {/* ZOBRAZENÍ ZPRÁVY PRO VŠECHNY UŽIVATELE (DIVÁKY I ROZHODČÍ) */}
       {tvMessage && (
         <div style={{ marginBottom: '40px', background: isDivak ? 'rgba(255, 235, 59, 0.1)' : '#fff3cd', border: '2px solid #ffeb3b', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
@@ -38,7 +81,7 @@ export const DashboardView = ({
                 type="text" 
                 value={tvMessageInput} 
                 onChange={e => setTvMessageInput(e.target.value)} 
-                placeholder="Např. Další zápas začíná v 18:00 (Liška vs. Sedlář)... Ponechte prázdné pro smazání." 
+                placeholder="Např. Další zápas začíná v 18:00 (Liška vs. Sedlář)... Ponechte prázdné pro smazání."
                 style={{ width: '100%', padding: '12px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', boxSizing: 'border-box' }} 
               />
             </div>
