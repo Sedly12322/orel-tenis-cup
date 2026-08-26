@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
@@ -23,90 +23,25 @@ const RODNICI = [
   { rok: 2009, popis: '1. ročník - 2009' },
 ];
 
-// Pomocná funkce - extrahuje unikátní jména hráčů z zápasů
-const extractPlayers = (zapasy) => {
-  const players = new Set();
-  zapasy.forEach(z => {
-    if (z.player1_name) players.add(z.player1_name);
-    if (z.player2_name) players.add(z.player2_name);
-  });
-  return Array.from(players).sort();
-};
-
-// Pomocná funkce - rozdělí zápasy na dvouhru a čtyrhru
-const splitMatches = (zapasy) => {
-  const dvouhra = zapasy.filter(z => 
-    !jeCtyrhraPar(z.player1_name) && !jeCtyrhraPar(z.player2_name) &&
-    !z.player1_name.includes(' / ') && !z.player2_name.includes(' / ')
-  );
-  const ctyrhra = zapasy.filter(z => 
-    jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name) ||
-    z.player1_name.includes(' / ') || z.player2_name.includes(' / ')
-  );
-  return { dvouhra, ctyrhra };
-};
-
-// Komponenta pro zobrazení zápasů jednoho hráče
-const HracZapasy = ({ zapasy, hrac, isDivak }) => {
-  const zapasyHrace = zapasy.filter(z => 
-    z.player1_name === hrac || z.player2_name === hrac
-  );
-  
-  return (
-    <div style={{ marginBottom: '15px' }}>
-      <strong style={{ color: isDivak ? '#ffeb3b' : '#333' }}>{hrac}</strong>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
-        {zapasyHrace.map(z => {
-          const isPlayer1 = z.player1_name === hrac;
-          const skore = isPlayer1 
-            ? `${z.match_state?.sets_won?.player1 || 0}:${z.match_state?.sets_won?.player2 || 0}`
-            : `${z.match_state?.sets_won?.player2 || 0}:${z.match_state?.sets_won?.player1 || 0}`;
-          const souper = isPlayer1 ? z.player2_name : z.player1_name;
-          
-          return (
-            <div key={z.id} style={{ 
-              background: isDivak ? '#333' : '#f0f0f0', 
-              padding: '8px 12px', 
-              borderRadius: '8px',
-              fontSize: '13px',
-              color: isDivak ? '#fff' : '#333'
-            }}>
-              <span style={{ color: '#888' }}>vs {souper?.split(' ').pop()}</span>
-              <span style={{ marginLeft: '8px', fontWeight: 'bold', color: '#007bff' }}>{skore}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Dashboard pro archivní rok
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Rozdělení na dvouhru a čtyrhru
-  const { dvouhra, ctyrhra } = useMemo(() => splitMatches(zapasy), [zapasy]);
-
-  // Extrakce hráčů
-  const hraciDvouhra = useMemo(() => extractPlayers(dvouhra), [dvouhra]);
-  const hraciCtyrhra = useMemo(() => extractPlayers(ctyrhra), [ctyrhra]);
-
   const smazatRok = async () => {
-    if (!window.confirm(`🚨 Opravdu smazat VŠECHNY zápasy z roku ${rok}? Nevratné!`)) return;
+    const rokText = rok === 2026 ? 'aktuální rok' : `rok ${rok}`;
+    if (!window.confirm(`🚨 Opravdu smazat VŠECHNY zápasy z ${rokText}? Nevratné!`)) return;
     setIsDeleting(true);
     try {
       const { data } = await supabase.from('matches').select('id, match_state');
       if (data) {
-        const ids = data.filter(z => z.match_state?.archive_year == rok).map(z => z.id);
+        const ids = data
+          .filter(z => z.match_state?.archive_year == rok)
+          .map(z => z.id);
         if (ids.length > 0) {
           for (let i = 0; i < ids.length; i += 50) {
             await supabase.from('matches').delete().in('id', ids.slice(i, i + 50));
           }
-          alert(`✅ Smazáno ${ids.length} zápasů z roku ${rok}`);
+          alert(`✅ Smazáno ${ids.length} zápasů z ${rokText}`);
           if (onDataChange) await onDataChange();
-        } else {
-          alert('Žádné zápasy k smazání');
         }
       }
     } catch (err) {
@@ -117,175 +52,62 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
 
   if (!zapasy || zapasy.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>
-        <p style={{ fontSize: '24px', marginBottom: '20px' }}>📭</p>
+      <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
         <p>Žádná data pro rok {rok}</p>
-        <p style={{ fontSize: '14px', marginTop: '10px' }}>Importujte data v sekci 📥 Import → 📚 Předchozí ročníky</p>
       </div>
     );
   }
 
+  const zapasyA = zapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
+  const zapasyB = zapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
+  const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
+  const zapasyOstatni = zapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z));
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
-        <h2 style={{ color: isDivak ? '#ffeb3b' : '#333', margin: 0 }}>
-          Výsledky z roku {rok} ({zapasy.length} zápasů)
-        </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ color: isDivak ? '#ffeb3b' : '#333', margin: 0 }}>Výsledky z roku {rok}</h2>
         <button onClick={smazatRok} disabled={isDeleting} 
-          style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
-          {isDeleting ? '⏳ Mažu...' : '🗑️ Smazat tento rok'}
+          style={{ padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
+          {isDeleting ? '⏳' : '🗑️ Smazat rok'}
         </button>
       </div>
       
-      {/* DVOUHRA */}
-      {dvouhra.length > 0 && (
-        <div style={{ marginBottom: '40px' }}>
-          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #007bff', paddingBottom: '10px', marginBottom: '20px' }}>
-            🎾 Dvouhra ({dvouhra.length} zápasů, {hraciDvouhra.length} hráčů)
-          </h3>
-          
-          {/* Tabulka */}
-          <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
-            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', background: isDivak ? '#222' : '#fff', borderRadius: '8px', overflow: 'hidden' }}>
-              <thead>
-                <tr style={{ background: isDivak ? '#333' : '#e9ecef' }}>
-                  <th style={{ padding: '12px', textAlign: 'left', color: isDivak ? '#fff' : '#333' }}>Hráč</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Z</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>V</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Sety</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Body</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hraciDvouhra.map(hrac => {
-                  const zapasyHrace = dvouhra.filter(z => z.player1_name === hrac || z.player2_name === hrac);
-                  let z = 0, v = 0, setyW = 0, setyL = 0, body = 0;
-                  
-                  zapasyHrace.forEach(zapas => {
-                    const isP1 = zapas.player1_name === hrac;
-                    const s1 = zapas.match_state?.sets_won?.player1 || 0;
-                    const s2 = zapas.match_state?.sets_won?.player2 || 0;
-                    const mySets = isP1 ? s1 : s2;
-                    const enemySets = isP1 ? s2 : s1;
-                    
-                    z++;
-                    if (mySets > enemySets) {
-                      v++;
-                      if (mySets === 2 && enemySets === 0) body += 4;
-                      else if (mySets === 2 && enemySets === 1) body += 3;
-                      else body += 2;
-                    } else {
-                      if (enemySets === 2 && mySets === 0) body += 0;
-                      else body += 1;
-                    }
-                    setyW += mySets;
-                    setyL += enemySets;
-                  });
-                  
-                  return (
-                    <tr key={hrac} style={{ borderBottom: '1px solid #444' }}>
-                      <td style={{ padding: '12px', fontWeight: 'bold', color: isDivak ? '#fff' : '#333' }}>{hrac}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#aaa' : '#666' }}>{z}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: '#28a745', fontWeight: 'bold' }}>{v}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#aaa' : '#666' }}>{setyW}:{setyL}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: '#007bff', fontWeight: 'bold', fontSize: '18px' }}>{body}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Detail zápasů */}
-          <details style={{ background: isDivak ? '#1a1a1a' : '#f8f9fa', borderRadius: '8px', padding: '10px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: isDivak ? '#fff' : '#333', padding: '10px' }}>
-              Zobrazit detal zápasů
-            </summary>
-            <div style={{ marginTop: '15px' }}>
-              {hraciDvouhra.map(hrac => (
-                <HracZapasy key={hrac} zapasy={dvouhra} hrac={hrac} isDivak={isDivak} />
-              ))}
-            </div>
-          </details>
+      {zapasyA.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Skupina A ({zapasyA.length})</h3>
+          <KrizovaTabulkaComponent matches={zapasyA} hraciList={HRACI_SKUPINA_A} nazev="Skupina A" isDivak={isDivak} />
         </div>
       )}
       
-      {/* ČTYŘHRA */}
-      {ctyrhra.length > 0 && (
-        <div style={{ marginBottom: '40px' }}>
-          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #17a2b8', paddingBottom: '10px', marginBottom: '20px' }}>
-            👥 Čtyřhra ({ctyrhra.length} zápasů, {hraciCtyrhra.length} párů)
-          </h3>
-          
-          <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
-            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', background: isDivak ? '#222' : '#fff', borderRadius: '8px', overflow: 'hidden' }}>
-              <thead>
-                <tr style={{ background: isDivak ? '#333' : '#e9ecef' }}>
-                  <th style={{ padding: '12px', textAlign: 'left', color: isDivak ? '#fff' : '#333' }}>Pár</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Z</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>V</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Sety</th>
-                  <th style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#fff' : '#333' }}>Body</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hraciCtyrhra.map(par => {
-                  const zapasyCtyrhu = ctyrhra.filter(z => z.player1_name === par || z.player2_name === par);
-                  let z = 0, v = 0, setyW = 0, setyL = 0, body = 0;
-                  
-                  zapasyCtyrhu.forEach(zapas => {
-                    const isP1 = zapas.player1_name === par;
-                    const s1 = zapas.match_state?.sets_won?.player1 || 0;
-                    const s2 = zapas.match_state?.sets_won?.player2 || 0;
-                    const mySets = isP1 ? s1 : s2;
-                    const enemySets = isP1 ? s2 : s1;
-                    
-                    z++;
-                    if (mySets > enemySets) {
-                      v++;
-                      if (mySets === 2 && enemySets === 0) body += 4;
-                      else if (mySets === 2 && enemySets === 1) body += 3;
-                      else body += 2;
-                    } else {
-                      if (enemySets === 2 && mySets === 0) body += 0;
-                      else body += 1;
-                    }
-                    setyW += mySets;
-                    setyL += enemySets;
-                  });
-                  
-                  return (
-                    <tr key={par} style={{ borderBottom: '1px solid #444' }}>
-                      <td style={{ padding: '12px', fontWeight: 'bold', color: isDivak ? '#fff' : '#333', fontSize: '13px' }}>
-                        {par.split(' / ').map((j, i) => (
-                          <span key={i}>
-                            {i > 0 && <span style={{ color: '#888' }}> / </span>}
-                            {j}
-                          </span>
-                        ))}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#aaa' : '#666' }}>{z}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: '#28a745', fontWeight: 'bold' }}>{v}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: isDivak ? '#aaa' : '#666' }}>{setyW}:{setyL}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: '#007bff', fontWeight: 'bold', fontSize: '18px' }}>{body}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {zapasyB.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Skupina B ({zapasyB.length})</h3>
+          <KrizovaTabulkaComponent matches={zapasyB} hraciList={HRACI_SKUPINA_B} nazev="Skupina B" isDivak={isDivak} />
+        </div>
+      )}
+      
+      {zapasyCtyrhra.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #17a2b8', paddingBottom: '8px' }}>Čtyřhra ({zapasyCtyrhra.length})</h3>
+          <CtyrhraKrizovaTabulka matches={zapasyCtyrhra} tymy={CTYRHRA_TYMY} nazev="Čtyřhra" isDivak={isDivak} />
+        </div>
+      )}
+
+      {zapasyOstatni.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ color: isDivak ? '#fff' : '#333', borderBottom: '2px solid #ffc107', paddingBottom: '8px' }}>Ostatní / Playoff ({zapasyOstatni.length})</h3>
+          <div style={{ background: isDivak ? '#222' : '#fff', borderRadius: '10px', overflow: 'hidden', marginTop: '15px' }}>
+            {zapasyOstatni.map(z => (
+              <div key={z.id} style={{ padding: '10px', borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: isDivak ? '#fff' : '#333', fontSize: '14px' }}>{z.player1_name}</span>
+                <span style={{ color: '#007bff', fontWeight: 'bold' }}>
+                  {z.match_state?.sets_won?.player1 || 0} : {z.match_state?.sets_won?.player2 || 0}
+                </span>
+                <span style={{ color: isDivak ? '#fff' : '#333', fontSize: '14px' }}>{z.player2_name}</span>
+              </div>
+            ))}
           </div>
-          
-          {/* Detail zápasů čtyřhry */}
-          <details style={{ background: isDivak ? '#1a1a1a' : '#f8f9fa', borderRadius: '8px', padding: '10px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: isDivak ? '#fff' : '#333', padding: '10px' }}>
-              Zobrazit detal zápasů
-            </summary>
-            <div style={{ marginTop: '15px' }}>
-              {hraciCtyrhta.map(par => (
-                <HracZapasy key={par} zapasy={ctyrhra} hrac={par} isDivak={isDivak} />
-              ))}
-            </div>
-          </details>
         </div>
       )}
     </div>
@@ -302,23 +124,26 @@ export const DashboardView = ({
 }) => {
   const [zobrazeneRok, setZobrazeneRok] = useState(2026);
 
-  // Rozdělení zápasů podle roku
+  // Filtrování podle roku
   const zapasyProRok = useMemo(() => {
-    const result = {};
+    const result = { 2026: [] };
     zapasList.forEach(z => {
-      const rok = z.match_state?.archive_year || 2026;
-      if (!result[rok]) result[rok] = [];
-      result[rok].push(z);
+      if (z.match_state?.archive_year) {
+        const rok = z.match_state.archive_year;
+        if (!result[rok]) result[rok] = [];
+        result[rok].push(z);
+      } else {
+        result[2026].push(z);
+      }
     });
     return result;
   }, [zapasList]);
 
-  // Aktuální zápasy (bez archive_year)
   const zapasyAktualni = zapasyProRok[2026] || [];
 
   // Smazání roku
   const smazatRok = async (rok) => {
-    const rokText = rok === 2026 ? 'aktuální rok' : `rok ${rok}`;
+    const rokText = rok === 2026 ? 'aktuálního roku' : `roku ${rok}`;
     if (!window.confirm(`🚨 Opravdu smazat VŠECHNY zápasy z ${rokText}? Nevratné!`)) return;
     
     try {
