@@ -231,7 +231,8 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
             current_game: { player1_points: "0", player2_points: "0" },
             is_tiebreak: false,
             archive_year: year,
-            skupina: skupina
+            skupina: skupina,
+            score_original: z.score
           }
         });
       }
@@ -242,6 +243,22 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
   zpracuj(data.skupinaB || [], 'B');
   zpracuj(data.finalek || [], 'FINALE');
   zpracuj(data.ctyrhra || [], 'CTYRHRA');
+  
+  // Přidej body a pořadí z webu (pokud existují)
+  if (data.hraciStat) {
+    for (const z of noveZapasy) {
+      const p1 = data.hraciStat[z.player1_name];
+      const p2 = data.hraciStat[z.player2_name];
+      if (p1) {
+        z.match_state.web_body = p1.body;
+        z.match_state.web_poradi = p1.poradi;
+      }
+      if (p2) {
+        z.match_state.web_body_p2 = p2.body;
+        z.match_state.web_poradi_p2 = p2.poradi;
+      }
+    }
+  }
   
   return noveZapasy;
 }

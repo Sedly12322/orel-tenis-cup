@@ -66,7 +66,8 @@ function parsujTabulkuHTML(html) {
   const tables = doc.querySelectorAll('table.vysledky');
   
   const vysledky = { skupinaA: [], skupinaB: [], finalek: [], ctyrhra: [] };
-  
+  const hraciStat = {}; // jmeno -> { body, poradi, skupina }
+
   tables.forEach((table) => {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
@@ -82,8 +83,8 @@ function parsujTabulkuHTML(html) {
       prev = prev.previousElementSibling;
     }
     
-    // Hráči z těla tabulky (sloupec 1 každého datového řádku), ne z hlavičky
-    const hraciMap = new Map(); // index -> jméno (z řádků dat)
+    // Hráči z těla tabulky (sloupec 1 každého datového řádku)
+    const hraciMap = new Map();
     for (let i = 2; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
       if (cells.length >= 2) {
@@ -94,11 +95,9 @@ function parsujTabulkuHTML(html) {
         }
       }
     }
-    
-    // Seřadit hráče podle indexu
     const hraci = Array.from(hraciMap.entries()).sort((a, b) => a[0] - b[0]).map(e => e[1]);
     
-    // Parsuj zápasy z řádků 2+ (jen horní trojúhelník - ne dvojité zápasy)
+    // Parsuj zápasy z řádků 2+ (jen horní trojúhelník)
     const zapasy = [];
     for (let i = 2; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
@@ -109,9 +108,14 @@ function parsujTabulkuHTML(html) {
       
       const hrac1Index = i - 2;
       
+      // Získej body a pořadí z posledních sloupců
+      const body = parseInt(getTextFromCell(cells[cells.length - 3])) || 0;
+      const poradi = getTextFromCell(cells[cells.length - 1]);
+      hraciStat[hrac1] = { body, poradi, skupina: nazevSkupiny };
+      
       for (let j = 2; j < cells.length - 3; j++) {
         const hrac2Index = j - 2;
-        if (hrac2Index >= hrac1Index) continue; // Horní trojúhelník
+        if (hrac2Index >= hrac1Index) continue;
         
         const skore = getTextFromCell(cells[j]);
         if (skore && skore !== 'XX' && (j - 2) < hraci.length) {
@@ -133,7 +137,7 @@ function parsujTabulkuHTML(html) {
     }
   });
   
-  return vysledky;
+  return { ...vysledky, hraciStat };
 }
 
 export default function ImportData({ zpetDoMenu, onDataChange }) {
