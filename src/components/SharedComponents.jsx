@@ -1,4 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+// Sbalitelná sekce (akordeon) - defaultně zavřená, pokud není otevřená
+export const CollapsibleSection = ({ title, count, defaultOpen = false, children, isDivak }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginTop: '50px' }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '14px 20px', background: isDivak ? '#222' : '#fff', color: isDivak ? '#fff' : '#000', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', userSelect: 'none', border: isDivak ? '1px solid #444' : '1px solid #ddd' }}>
+        <span style={{ fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 'bold' }}>{title}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {count !== undefined && <span style={{ background: isDivak ? '#444' : '#e9ecef', color: isDivak ? '#ccc' : '#555', padding: '4px 12px', borderRadius: '12px', fontSize: '15px', fontWeight: 'bold' }}>{count}</span>}
+          <span style={{ fontSize: '20px', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
+        </span>
+      </div>
+      {open && <div style={{ marginTop: '15px' }}>{children}</div>}
+    </div>
+  );
+};
+
+// Kompaktní jednořádkový zápis zápasu pro seznamy
+export const ZapasRow = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
+  const p1 = zapas.player1_name || 'Hráč 1';
+  const p2 = zapas.player2_name || 'Hráč 2';
+  const s1 = zapas.match_state?.sets_won?.player1 || 0;
+  const s2 = zapas.match_state?.sets_won?.player2 || 0;
+  const isFinished = zapas.status === 'finished';
+  const isLive = zapas.status === 'live';
+
+  const rowStyle = { display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 14px', borderBottom: isDivak ? '1px solid #333' : '1px solid #eee', fontSize: '16px' };
+
+  return (
+    <div style={{ ...rowStyle, background: isLive ? (isDivak ? '#3a2020' : '#fff3f3') : 'transparent' }}>
+      <span style={{ flex: 1, textAlign: 'right', fontWeight: isFinished && s1 > s2 ? 'bold' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p1}</span>
+      {isFinished || isLive ? (
+        <span style={{ fontWeight: 'bold', minWidth: '48px', textAlign: 'center', background: isDivak ? '#333' : '#e9ecef', borderRadius: '6px', padding: '3px 8px' }}>{s1}:{s2}</span>
+      ) : (
+        <span style={{ fontSize: '13px', color: '#888', minWidth: '48px', textAlign: 'center' }}>vs</span>
+      )}
+      <span style={{ flex: 1, fontWeight: isFinished && s2 > s1 ? 'bold' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p2}</span>
+      {isLive && <span style={{ color: '#dc3545', fontWeight: 'bold', fontSize: '13px', animation: 'pulse 2s infinite' }}>LIVE</span>}
+      {(!isDivak || isFinished) && (
+        <>
+          <button onClick={() => otevritZapas(zapas.id)} style={{ padding: '5px 12px', fontSize: '13px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Detail</button>
+          {!isDivak && <button onClick={() => smazatZapas(zapas.id)} style={{ padding: '5px 10px', fontSize: '13px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>🗑</button>}
+        </>
+      )}
+    </div>
+  );
+};
 
 export const ZapasCard = ({ zapas, isDivak, otevritZapas, smazatZapas }) => {
   const p1 = zapas.player1_name || 'Hráč 1';
