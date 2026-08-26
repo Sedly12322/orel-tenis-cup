@@ -65,15 +65,24 @@ function parsujTabulkuHTML(html) {
   const doc = parser.parseFromString(html, 'text/html');
   const tables = doc.querySelectorAll('table.vysledky');
   
-  const vysledky = { skupinaA: [], skupinaB: [], finalek: [] };
+  const vysledky = { skupinaA: [], skupinaB: [], finalek: [], ctyrhra: [] };
   
   tables.forEach((table) => {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
     
-    const headerCell = rows[0].querySelector('td');
-    const nazevSkupiny = headerCell ? getTextFromCell(headerCell) : '';
+    // Najdi hlavičku s názvem skupiny - h3 před tabulkou
+    let nazevSkupiny = '';
+    let prev = table.previousElementSibling;
+    while (prev) {
+      if (prev.tagName === 'H3') {
+        nazevSkupiny = prev.textContent.trim();
+        break;
+      }
+      prev = prev.previousElementSibling;
+    }
     
+    // Hráči z druhého řádku tabulky
     const playerRow = rows[1];
     const playerCells = playerRow.querySelectorAll('td');
     const hraci = [];
@@ -82,6 +91,7 @@ function parsujTabulkuHTML(html) {
       if (text && !text.match(/^\d+$/)) hraci.push(text);
     }
     
+    // Parsuj zápasy z řádků 2+
     const zapasy = [];
     for (let i = 2; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
@@ -99,12 +109,15 @@ function parsujTabulkuHTML(html) {
       }
     }
     
+    // Přiřaď do skupiny podle hlavičky
     if (nazevSkupiny.includes('Finále')) {
       vysledky.finalek = zapasy;
-    } else if (nazevSkupiny.includes('skupina A') || nazevSkupiny.includes('Skupina A')) {
+    } else if (nazevSkupiny.includes('Skupina A') || nazevSkupiny.includes('skupina A')) {
       vysledky.skupinaA = zapasy;
-    } else if (nazevSkupiny.includes('skupina B') || nazevSkupiny.includes('Skupina B')) {
+    } else if (nazevSkupiny.includes('Skupina B') || nazevSkupiny.includes('skupina B')) {
       vysledky.skupinaB = zapasy;
+    } else if (nazevSkupiny.includes('Čtyřhra') || nazevSkupiny.toLowerCase().includes('čtyřhra')) {
+      vysledky.ctyrhra = zapasy;
     }
   });
   

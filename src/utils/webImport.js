@@ -82,7 +82,8 @@ function parsujTabuldoc(html) {
   const vysledky = {
     skupinaA: [],
     skupinaB: [],
-    finalek: []
+    finalek: [],
+    ctyrhra: []
   };
   
   tables.forEach((table) => {
@@ -237,9 +238,10 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
     }
   };
   
-  zpracuj(data.skupinaA, 'A');
-  zpracuj(data.skupinaB, 'B');
-  zpracuj(data.finalek, 'FINALE');
+  zpracuj(data.skupinaA || [], 'A');
+  zpracuj(data.skupinaB || [], 'B');
+  zpracuj(data.finalek || [], 'FINALE');
+  zpracuj(data.ctyrhra || [], 'CTYRHRA');
   
   return noveZapasy;
 }
