@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import RocnikOTCLTabulka from './RocnikOTCLTabulka';
+import ArchivKrizovaTabulka from './ArchivKrizovaTabulka';
 import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
 
 const RODNICI = [
@@ -66,17 +67,26 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const zapasyFinale = zapasy.filter(z => z.match_state?.skupina === 'FINALE');
   const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
 
-  // Extrakce unikátních hráčů z dat
-  const zapasyDvouhra = useMemo(() => [...zapasySkupinaA, ...zapasySkupinaB, ...zapasyFinale], [zapasySkupinaA, zapasySkupinaB, zapasyFinale]);
-  
-  const hraciDvouhra = useMemo(() => {
+  // Extrakce unikátních hráčů z dat - rozděleno podle skupin
+  const hraciSkupinaA = useMemo(() => {
     const hraci = new Set();
-    zapasyDvouhra.forEach(z => {
+    zapasySkupinaA.forEach(z => {
       hraci.add(z.player1_name);
       hraci.add(z.player2_name);
     });
     return Array.from(hraci).sort();
-  }, [zapasyDvouhra]);
+  }, [zapasySkupinaA]);
+
+  const hraciSkupinaB = useMemo(() => {
+    const hraci = new Set();
+    zapasySkupinaB.forEach(z => {
+      hraci.add(z.player1_name);
+      hraci.add(z.player2_name);
+    });
+    return Array.from(hraci).sort();
+  }, [zapasySkupinaB]);
+
+  const hraciDvouhra = useMemo(() => [...hraciSkupinaA, ...hraciSkupinaB], [hraciSkupinaA, hraciSkupinaB]);
 
   const hraciCtyrhra = useMemo(() => {
     const hraci = new Set();
@@ -124,8 +134,8 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         </>
       ) : (
         <>
-          <KrizovaTabulkaComponent matches={zapasySkupinaA} hraciList={hraciDvouhra} nazev="Skupina A" isDivak={isDivak} />
-          <KrizovaTabulkaComponent matches={zapasySkupinaB} hraciList={hraciDvouhra} nazev="Skupina B" isDivak={isDivak} />
+          <ArchivKrizovaTabulka matches={zapasySkupinaA} nazev="Skupina A" isDivak={isDivak} rok={rok} />
+          <ArchivKrizovaTabulka matches={zapasySkupinaB} nazev="Skupina B" isDivak={isDivak} rok={rok} />
         </>
       )}
     </div>
