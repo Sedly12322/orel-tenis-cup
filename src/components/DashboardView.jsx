@@ -97,7 +97,6 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
       {zapasyDvouhra.length > 0 && (
         <RocnikOTCLTabulka 
           matches={zapasyDvouhra} 
-          hraci={hraciDvouhra} 
           nazev="Dvouhra muži" 
           isDivak={isDivak} 
           rok={rok} 
@@ -107,7 +106,6 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
       {zapasyCtyrhra.length > 0 && (
         <RocnikOTCLTabulka 
           matches={zapasyCtyrhra} 
-          hraci={hraciCtyrhra} 
           nazev="Čtyřhra" 
           isDivak={isDivak} 
           rok={rok} 
