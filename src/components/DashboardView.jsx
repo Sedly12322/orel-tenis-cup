@@ -34,7 +34,7 @@ export const DashboardView = ({
   // Filtrování podle roku
   const filtrovaneZapasy = zobrazeneRok === '2026'
     ? zapasList
-    : zapasList.filter(z => z.year && z.year.toString() === zobrazeneRok);
+    : zapasList.filter(z => z.match_state && z.match_state.archive_year && z.match_state.archive_year.toString() === zobrazeneRok);
 
   const liveZapasy = filtrovaneZapasy.filter(z => z.status === 'live');
   const neZiveZapasy = filtrovaneZapasy.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 

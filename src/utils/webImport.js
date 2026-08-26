@@ -226,7 +226,6 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
           player2_name: z.player2,
           status: 'finished',
           round: null,
-          year: year, // Přidáváme ročník
           match_state: {
             player1_name: z.player1,
             player2_name: z.player2,
@@ -235,7 +234,8 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
             completed_sets: completedSets,
             current_set: { player1_games: 0, player2_games: 0 },
             current_game: { player1_points: "0", player2_points: "0" },
-            is_tiebreak: false
+            is_tiebreak: false,
+            archive_year: year
           }
         });
       }
