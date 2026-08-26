@@ -82,14 +82,21 @@ function parsujTabulkuHTML(html) {
       prev = prev.previousElementSibling;
     }
     
-    // Hráči z druhého řádku tabulky
-    const playerRow = rows[1];
-    const playerCells = playerRow.querySelectorAll('td');
-    const hraci = [];
-    for (let i = 0; i < playerCells.length; i++) {
-      const text = getTextFromCell(playerCells[i]);
-      if (text && !text.match(/^\d+$/)) hraci.push(text);
+    // Hráči z těla tabulky (sloupec 1 každého datového řádku), ne z hlavičky
+    const hraciMap = new Map(); // index -> jméno (z řádků dat)
+    for (let i = 2; i < rows.length; i++) {
+      const cells = rows[i].querySelectorAll('td');
+      if (cells.length >= 2) {
+        const idx = parseInt(getTextFromCell(cells[0])) || (i - 1);
+        const jmeno = normalizujPar(getTextFromCell(cells[1]));
+        if (jmeno && jmeno !== 'XX') {
+          hraciMap.set(idx, jmeno);
+        }
+      }
     }
+    
+    // Seřadit hráče podle indexu
+    const hraci = Array.from(hraciMap.entries()).sort((a, b) => a[0] - b[0]).map(e => e[1]);
     
     // Parsuj zápasy z řádků 2+
     const zapasy = [];
