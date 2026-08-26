@@ -71,6 +71,29 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
     }
   };
 
+  const smazatVse = async () => {
+    if (!window.confirm('🚨 Smazat VŠECHNY zápasy? Nevratné!')) return;
+    if (!window.confirm('Jste si jistí? Smažou se VŠECHNA data!')) return;
+    setIsLoading(true);
+    setStatus('Mažu vše...');
+    try {
+      const { data } = await supabase.from('matches').select('id');
+      if (data && data.length > 0) {
+        const ids = data.map(z => z.id);
+        for (let i = 0; i < ids.length; i += 50) {
+          await supabase.from('matches').delete().in('id', ids.slice(i, i + 50));
+        }
+        setStatus(`✅ Smazáno ${ids.length} zápasů!`);
+      } else {
+        setStatus('Žádné zápasy k smazání.');
+      }
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      setStatus(`❌ Chyba: ${err.message}`);
+    }
+    setIsLoading(false);
+  };
+
   const smazatZapasy = async (typ) => {
     const nazev = typ === 'dvouhra' ? 'dvouhry' : 'čtyřhry';
     
@@ -147,6 +170,10 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
             <button onClick={() => smazatZapasy('dvouhra')} disabled={isLoading}
               style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
               🗑️ Smazat všechny zápasy dvouhry
+            </button>
+            <button onClick={smazatVse} disabled={isLoading}
+              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#8b0000', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+              💥 Smazat VŠECHNY zápasy
             </button>
           </div>
         </div>
