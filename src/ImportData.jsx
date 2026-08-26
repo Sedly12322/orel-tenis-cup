@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase';
 import { importujDataZWebu, prevedNaZapasy } from './utils/webImport';
-import { jeCtyrhraPar, HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY } from './utils/constants';
+import { jeCtyrhraPar, HRACI_SKUPINA_A, HRACI_SKUPINA_B } from './utils/constants';
 
 const RODNICI = [
   { rok: 2025, popis: '17. ročník - 2025' },
@@ -23,6 +23,100 @@ const RODNICI = [
   { rok: 2009, popis: '1. ročník - 2009' },
 ];
 
+// Pomocné funkce pro parsování HTML mimo komponentu
+function normalizujPar(raw) {
+  const jmena = String(raw)
+    .split(/\s*\n\s*|\s*\/\s*/)
+    .map(j => j.replace(/^[\s]+|[\s]+$/g, ''))
+    .filter(Boolean);
+  return jmena.join(' / ');
+}
+
+function parsujScore(scoreStr) {
+  const sets = [];
+  if (!scoreStr || scoreStr.includes('K')) return sets;
+  
+  const casti = scoreStr.split(',').map(s => s.trim());
+  for (const cast of casti) {
+    const match = cast.match(/^(\d+)-(\d+)/);
+    if (match) {
+      let g1 = parseInt(match[1]);
+      let g2 = parseInt(match[2]);
+      if (g1 > 9 && ![10,11,12,13,14,15].includes(g1)) g1 = parseInt(match[1].charAt(0));
+      if (g2 > 9 && ![10,11,12,13,14,15].includes(g2)) g2 = parseInt(match[2].charAt(0));
+      sets.push({ player1_games: g1, player2_games: g2 });
+    }
+  }
+  return sets;
+}
+
+function getTextFromCell(cell) {
+  if (!cell) return '';
+  if (typeof cell.textContent !== 'undefined') return cell.textContent.trim();
+  let html = String(cell.innerHTML || '');
+  html = html.replace(/&nbsp;/g, ' ').replace(/<BR\s*\/?>/gi, '\n');
+  html = html.replace(/<[^>]*>/g, '');
+  html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  return html.trim();
+}
+
+function parsujTabulkuHTML(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const tables = doc.querySelectorAll('table.vysledky');
+  
+  const vysledky = { skupinaA: [], skupinaB: [], ctyrhra: [] };
+  
+  tables.forEach((table) => {
+    const rows = table.querySelectorAll('tr');
+    if (rows.length < 3) return;
+    
+    const headerCell = rows[0].querySelector('td');
+    const nazevSkupiny = headerCell ? getTextFromCell(headerCell) : '';
+    
+    const playerRow = rows[1];
+    const playerCells = playerRow.querySelectorAll('td');
+    const hraci = [];
+    for (let i = 0; i < playerCells.length; i++) {
+      const text = getTextFromCell(playerCells[i]);
+      if (text && !text.match(/^\d+$/)) hraci.push(text);
+    }
+    
+    const zapasy = [];
+    for (let i = 2; i < rows.length; i++) {
+      const cells = rows[i].querySelectorAll('td');
+      if (cells.length < 3) continue;
+      
+      const hrac1 = normalizujPar(getTextFromCell(cells[1]));
+      if (!hrac1 || hrac1 === 'XX') continue;
+      
+      for (let j = 2; j < cells.length - 3; j++) {
+        const skore = getTextFromCell(cells[j]);
+        if (skore && skore !== 'XX' && (j - 2) < hraci.length) {
+          const hrac2 = normalizujPar(hraci[j - 2]);
+          zapasy.push({ player1: hrac1, player2: hrac2, score: skore });
+        }
+      }
+    }
+    
+    if (nazevSkupiny.toLowerCase().includes('čtyřhra')) {
+      vysledky.ctyrhra = zapasy;
+    } else if (nazevSkupiny.toLowerCase().includes('skupina a')) {
+      vysledky.skupinaA = zapasy;
+    } else if (nazevSkupiny.toLowerCase().includes('skupina b')) {
+      vysledky.skupinaB = zapasy;
+    } else if (nazevSkupiny.toLowerCase().includes('finále')) {
+      // Finále - přidat do skupiny A
+      vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
+    } else {
+      // Pokud není jasné o kterou skupinu jde, přidat do skupiny A
+      vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
+    }
+  });
+  
+  return vysledky;
+}
+
 export default function ImportData({ zpetDoMenu, onDataChange }) {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -31,7 +125,7 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
   const spustitImport = async (typ, year = null) => {
     setIsLoading(true);
     const rokText = year ? `(${year})` : '';
-    setStatus(`Stahuji data z webu ${rokText} (${typ === 'dvouhra' ? 'dvouhra' : 'čtyřhra'})...`);
+    setStatus(`Stahuji data z webu ${rokText}...`);
     
     try {
       const v1 = typ === 'dvouhra' ? 60 : 61;
@@ -43,103 +137,65 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
       const noveZapasy = prevedNaZapasy(data, existingMatches || [], year);
       
       if (noveZapasy.length === 0) {
-        setStatus(`Všechny zápasy (${typ}) ${rokText} už v databázi existují. Nic nepřidáno.`);
+        setStatus(`Všechny zápasy (${typ}) ${rokText} už v databázi existují.`);
         setIsLoading(false);
         return;
       }
       
-      setStatus(`Přidávám ${noveZapasy.length} nových zápasů (${typ}) ${rokText}...`);
+      setStatus(`Přidávám ${noveZapasy.length} nových zápasů...`);
       
-      // Vkládáme po dávkách po 50
       for (let i = 0; i < noveZapasy.length; i += 50) {
         const batch = noveZapasy.slice(i, i + 50);
         const { error } = await supabase.from('matches').insert(batch);
-        if (error) {
-          throw new Error(`Chyba při zápisu do databáze: ${error.message}`);
-        }
+        if (error) throw new Error(error.message);
       }
       
-      setStatus(`✅ Úspěšně přidáno ${noveZapasy.length} nových zápasů (${typ}) ${rokText}!`);
+      setStatus(`✅ Úspěšně přidáno ${noveZapasy.length} zápasů!`);
       if (onDataChange) onDataChange();
       setTimeout(() => zpetDoMenu(), 2000);
       
     } catch (err) {
       setStatus(`❌ Chyba: ${err.message}`);
-      console.error('Chyba při importu:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Aktualizace existujících dat - přiřazení ročníku 2026 pro aktuální sezónu
-  const aktualniRocnik = async () => {
-    if (!window.confirm('Přiřadit všechny zápasy bez ročníku do roku 2026 (aktuální)?')) return;
+  const smazatZapasy = async (typ) => {
+    const nazev = typ === 'dvouhra' ? 'dvouhry' : 'čtyřhry';
+    if (!window.confirm(`🚨 Smazat VŠECHNY zápasy ${nazev}? Nevratné!`)) return;
+    
     setIsLoading(true);
-    let count = 0;
+    setStatus(`Mažu zápasy ${nazev}...`);
+    
     try {
-      const { data: zapasy } = await supabase
-        .from('matches')
-        .select('id, match_state')
-        .is('match_state.archive_year', null);
+      const { data: vsechny } = await supabase.from('matches').select('id, player1_name, player2_name');
       
-      if (zapasy && zapasy.length > 0) {
-        for (const z of zapasy) {
-          const newState = { ...z.match_state, archive_year: 2026 };
-          await supabase.from('matches').update({ match_state: newState }).eq('id', z.id);
-          count++;
-        }
-        setStatus(`✅ Aktualizováno ${count} zápasů (nastaveno archive_year: 2026)!`);
-      } else {
-        setStatus('Žádné zápasy bez ročníku nenalezeny.');
-      }
-      if (onDataChange) onDataChange();
-    } catch (err) {
-      setStatus(`❌ Chyba: ${err.message}`);
-    }
-    setIsLoading(false);
-  };
-
-  // Aktualizace existujících dat - oprava ročníku podle jmen hráčů
-  const opravitRocnik = async () => {
-    if (!window.confirm('Opravit ročníky všech zápasů podle seznamu hráčů?')) return;
-    setIsLoading(true);
-    let count2026 = 0;
-    let count2025 = 0;
-    try {
-      const { data: zapasy } = await supabase
-        .from('matches')
-        .select('id, player1_name, player2_name, match_state');
-      
-      if (zapasy) {
-        const allCurrentPlayers = [...HRACI_SKUPINA_A, ...HRACI_SKUPINA_B];
+      if (vsechny && vsechny.length > 0) {
+        const ids = vsechny
+          .filter(z => typ === 'ctyrhra' ? (jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name)) : (!jeCtyrhraPar(z.player1_name) && !jeCtyrhraPar(z.player2_name)))
+          .map(z => z.id);
         
-        for (const z of zapasy) {
-          const isCurrentYear = allCurrentPlayers.includes(z.player1_name) || allCurrentPlayers.includes(z.player2_name);
-          const newArchiveYear = isCurrentYear ? null : 2025;
-          
-          // Only update if different
-          if (z.match_state?.archive_year !== newArchiveYear) {
-            const newState = { ...z.match_state, archive_year: newArchiveYear };
-            await supabase.from('matches').update({ match_state: newState }).eq('id', z.id);
-            if (isCurrentYear) count2026++; else count2025++;
+        if (ids.length > 0) {
+          for (let i = 0; i < ids.length; i += 50) {
+            await supabase.from('matches').delete().in('id', ids.slice(i, i + 50));
           }
+          setStatus(`✅ Smazáno ${ids.length} zápasů!`);
+        } else {
+          setStatus(`Žádné zápasy ${nazev} nenalezeny.`);
         }
-        setStatus(`✅ Opraveno: ${count2026} pro rok 2026, ${count2025} pro archiv!`);
-      } else {
-        setStatus('Žádné zápasy nenalezeny.');
       }
       if (onDataChange) onDataChange();
     } catch (err) {
       setStatus(`❌ Chyba: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const smazatVse = async () => {
     if (!window.confirm('🚨 Smazat VŠECHNY zápasy? Nevratné!')) return;
-    if (!window.confirm('Jste si jistí? Smažou se VŠECHNA data!')) return;
     setIsLoading(true);
-    setStatus('Mažu vše...');
     try {
       const { data } = await supabase.from('matches').select('id');
       if (data && data.length > 0) {
@@ -158,55 +214,44 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
     setIsLoading(false);
   };
 
-  const smazatZapasy = async (typ) => {
-    const nazev = typ === 'dvouhra' ? 'dvouhry' : 'čtyřhry';
-    
-    if (!window.confirm(`🚨 Smazat VŠECHNY zápasy ${nazev}? Nevratné!`)) return;
-    if (!window.confirm(`Jste si jistí?`)) return;
+  // Nová funkce: Nahrát archivní HTML soubor
+  const nahratArchiv = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
     
     setIsLoading(true);
-    setStatus(`Mažu zápasy ${nazev}...`);
+    setStatus(`Nahrávám soubor ${file.name}...`);
     
     try {
-      const { data: vsechny, error: selectError } = await supabase
-        .from('matches')
-        .select('id, player1_name, player2_name');
+      const text = await file.text();
+      const data = parsujTabulkuHTML(text);
       
-      if (selectError) {
-        throw new Error(`Chyba při načítání: ${selectError.message}`);
+      const { data: existingMatches } = await supabase.from('matches').select('*');
+      const year = selectedYear;
+      
+      const noveZapasy = prevedNaZapasy(data, existingMatches || [], year);
+      
+      if (noveZapasy.length === 0) {
+        setStatus(`Všechny zápasy z tohoto souboru už v databázi existují.`);
+        setIsLoading(false);
+        event.target.value = '';
+        return;
       }
       
-      if (vsechny && vsechny.length > 0) {
-        const ids = vsechny
-          .filter(z => typ === 'ctyrhra' ? jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name) : !jeCtyrhraPar(z.player1_name) && !jeCtyrhraPar(z.player2_name))
-          .map(z => z.id);
-        
-        console.log(`Mazu ${ids.length} zápasů ${nazev}...`);
-        
-        if (ids.length > 0) {
-          for (let i = 0; i < ids.length; i += 50) {
-            const batch = ids.slice(i, i + 50);
-            const { error: deleteError } = await supabase
-              .from('matches')
-              .delete()
-              .in('id', batch);
-            
-            if (deleteError) {
-              throw new Error(`Chyba při mazání: ${deleteError.message}`);
-            }
-          }
-        }
+      for (let i = 0; i < noveZapasy.length; i += 50) {
+        const batch = noveZapasy.slice(i, i + 50);
+        const { error } = await supabase.from('matches').insert(batch);
+        if (error) throw new Error(error.message);
       }
       
-      setStatus(`✅ Zápasy ${nazev} smazány!`);
+      setStatus(`✅ Úspěšně nahráno ${noveZapasy.length} zápasů z archívu!`);
       if (onDataChange) onDataChange();
-      setTimeout(() => zpetDoMenu(), 2000);
       
     } catch (err) {
-      setStatus(`❌ Chyba: ${err.message}`);
-      console.error('Chyba při mazání:', err);
+      setStatus(`❌ Chyba při nahrávání: ${err.message}`);
     } finally {
       setIsLoading(false);
+      event.target.value = '';
     }
   };
 
@@ -235,14 +280,6 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
               style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
               🗑️ Smazat všechny zápasy dvouhry
             </button>
-            <button onClick={aktualniRocnik} disabled={isLoading}
-              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#007bff', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              🔧 Opravit na rok 2026
-            </button>
-            <button onClick={opravitRocnik} disabled={isLoading}
-              style={{ padding: '12px 20px', background: isLoading ? '#6c757d' : '#ffc107', color: '#333', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              🔩 Opravit ročníky
-            </button>
           </div>
         </div>
 
@@ -265,46 +302,69 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
           </div>
         </div>
 
-        {/* PŘEDCHÁZEJÍCÍ ROČNÍKY */}
-        <div style={{ background: '#fff', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginBottom: '30px' }}>
+        {/* ARCHIV - NAHRÁT SOUBOR */}
+        <div style={{ background: '#fff3cd', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginBottom: '30px', border: '3px solid #ffc107' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <span style={{ fontSize: '48px' }}>📚</span>
-            <h2 style={{ margin: '10px 0', color: '#6f42c1' }}>Předešlé ročníky</h2>
-            <p style={{ color: '#666' }}>Import dat z archivu (2009–2025)</p>
-          </div>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#333' }}>Vyberte ročník:</label>
-            <select 
-              value={selectedYear} 
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              disabled={isLoading}
-              style={{ width: '100%', padding: '12px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', background: '#fff' }}
-            >
-              {RODNICI.map(r => (
-                <option key={r.rok} value={r.rok}>{r.popis}</option>
-              ))}
-            </select>
+            <h2 style={{ margin: '10px 0', color: '#856404' }}>Předchozí ročníky (Archiv)</h2>
+            <p style={{ color: '#856404' }}>
+              Vyber ročník, stáhni HTML z webu a nahrát ho sem.<br/>
+              <strong>Postup:</strong> Jdi na <a href="https://orellichnov.cz/otcl/vysledky/" target="_blank" rel="noreferrer" style={{ color: '#856404', textDecoration: 'underline' }}>orellichnov.cz/otcl/vysledky/</a>, 
+              vyber rok v dropdownu, klikni na "Dvouhra muži" nebo "Čtyřhra", pak Ctrl+S (Uložit stránku jako...).
+            </p>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <button onClick={() => spustitImport('dvouhra', selectedYear)} disabled={isLoading}
-              style={{ padding: '15px 25px', background: isLoading ? '#6c757d' : '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '18px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              {isLoading ? '⏳ Importuji...' : `📥 Importovat dvouhru (${selectedYear})`}
-            </button>
-            <button onClick={() => spustitImport('ctyrhra', selectedYear)} disabled={isLoading}
-              style={{ padding: '15px 25px', background: isLoading ? '#6c757d' : '#6f42c1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '18px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              {isLoading ? '⏳ Importuji...' : `📥 Importovat čtyřhru (${selectedYear})`}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+              <label style={{ fontWeight: 'bold', color: '#856404' }}>Ročník:</label>
+              <select 
+                value={selectedYear} 
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ffc107' }}
+              >
+                {RODNICI.map(r => (
+                  <option key={r.rok} value={r.rok}>{r.popis}</option>
+                ))}
+              </select>
+            </div>
+            
+            <label style={{ 
+              padding: '15px 25px', 
+              background: isLoading ? '#6c757d' : '#ffc107', 
+              color: '#333', 
+              border: 'none', 
+              borderRadius: '8px', 
+              fontSize: '18px', 
+              cursor: isLoading ? 'not-allowed' : 'pointer', 
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }}>
+              {isLoading ? '⏳ Nahrávám...' : `📂 Vybrat HTML soubor (archív ${selectedYear})`}
+              <input 
+                type="file" 
+                accept=".html,.htm" 
+                onChange={nahratArchiv}
+                disabled={isLoading}
+                style={{ display: 'none' }}
+              />
+            </label>
           </div>
         </div>
 
+        {/* SMAZAT VŠE */}
+        <div style={{ background: '#f8d7da', padding: '20px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.1)', border: '2px solid #f5c6cb' }}>
+          <button onClick={smazatVse} disabled={isLoading}
+            style={{ padding: '15px 25px', background: isLoading ? '#6c757d' : '#dc3545', color: 'white', border: 'none', borderRadius: '8px', fontSize: '18px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+            💥 Smazat VŠECHNY zápasy
+          </button>
+        </div>
+        
+        {/* STATUS */}
         {status && (
-          <div style={{ marginTop: '20px', padding: '15px', background: status.startsWith('✅') ? '#d4edda' : status.startsWith('❌') ? '#f8d7da' : '#fff3cd', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', textAlign: 'center' }}>
+          <div style={{ marginTop: '30px', padding: '20px', background: status.startsWith('✅') ? '#d4edda' : status.startsWith('❌') ? '#f8d7da' : '#fff3cd', borderRadius: '10px', fontSize: '18px', fontWeight: 'bold' }}>
             {status}
           </div>
         )}
-
       </div>
     </div>
   );
