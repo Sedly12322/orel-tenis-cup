@@ -192,7 +192,7 @@ export async function importujDataZWebu(v1 = null, year = null) {
 export function prevedNaZapasy(data, existingMatches = [], year = null) {
   const noveZapasy = [];
   
-  const zpracuj = (zapasy) => {
+  const zpracuj = (zapasy, skupina) => {
     for (const z of zapasy) {
       const existujici = existingMatches.find(e => {
         const samePlayers = 
@@ -201,7 +201,7 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
         if (!samePlayers) return false;
         
         if (year) {
-          return e.match_state?.archive_year === year;
+          return e.match_state?.archive_year === year && e.match_state?.skupina === skupina;
         } else {
           return !e.match_state?.archive_year;
         }
@@ -229,16 +229,17 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
             current_set: { player1_games: 0, player2_games: 0 },
             current_game: { player1_points: "0", player2_points: "0" },
             is_tiebreak: false,
-            archive_year: year
+            archive_year: year,
+            skupina: skupina
           }
         });
       }
     }
   };
   
-  zpracuj(data.skupinaA);
-  zpracuj(data.skupinaB);
-  zpracuj(data.finalek);
+  zpracuj(data.skupinaA, 'A');
+  zpracuj(data.skupinaB, 'B');
+  zpracuj(data.finalek, 'FINALE');
   
   return noveZapasy;
 }

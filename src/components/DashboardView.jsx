@@ -59,50 +59,11 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
     );
   }
 
-  // Rozdělení na Finále, Skupina A, Skupina B podle hráčů
-  // Finále = hráči z obou skupin (nejlepší 2 z každé)
-  // Skupina A = hráči z archivní Skupiny A
-  // Skupina B = hráči z archivní Skupiny B
-  const { zapasyFinalek, zapasySkupinaA, zapasySkupinaB } = useMemo(() => {
-    // Unikátní hráči
-    const allPlayers = new Set();
-    zapasy.forEach(z => {
-      allPlayers.add(z.player1_name);
-      allPlayers.add(z.player2_name);
-    });
-    
-    // Rozděl na skupiny podle toho, z jakého zápasu jsou
-    const allPlayersArray = Array.from(allPlayers).sort();
-    const half = Math.floor(allPlayersArray.length / 2);
-    
-    const skupinaA = new Set(allPlayersArray.slice(0, half));
-    const skupinaB = new Set(allPlayersArray.slice(half));
-    
-    const zapasySkupinaAArr = [];
-    const zapasySkupinaBArr = [];
-    const zapasyFinalekArr = [];
-    
-    zapasy.forEach(z => {
-      const p1A = skupinaA.has(z.player1_name);
-      const p2A = skupinaA.has(z.player2_name);
-      const p1B = skupinaB.has(z.player1_name);
-      const p2B = skupinaB.has(z.player2_name);
-      
-      if (p1A && p2A) {
-        zapasySkupinaAArr.push(z);
-      } else if (p1B && p2B) {
-        zapasySkupinaBArr.push(z);
-      } else {
-        zapasyFinalekArr.push(z);
-      }
-    });
-    
-    return {
-      zapasyFinalek: zapasyFinalekArr,
-      zapasySkupinaA: zapasySkupinaAArr,
-      zapasySkupinaB: zapasySkupinaBArr
-    };
-  }, [zapasy]);
+  // Pro archivní roky: rozděl na skupiny podle match_state.skupina
+  const zapasySkupinaA = zapasy.filter(z => z.match_state?.skupina === 'A');
+  const zapasySkupinaB = zapasy.filter(z => z.match_state?.skupina === 'B');
+  const zapasyFinale = zapasy.filter(z => z.match_state?.skupina === 'FINALE');
+  const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
 
   // Extrakce unikátních hráčů z dat
   const hraciDvouhra = useMemo(() => {
@@ -135,31 +96,20 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         </button>
       </div>
       
-      {zapasyFinalek.length > 0 && (
-        <RocnikOTCLTabulka 
-          matches={zapasyFinalek} 
-          nazev="Dvouhra muži - Finále" 
-          isDivak={isDivak} 
-          rok={rok} 
-        />
-      )}
-      
       {zapasySkupinaA.length > 0 && (
-        <RocnikOTCLTabulka 
-          matches={zapasySkupinaA} 
-          nazev="Dvouhra muži - Skupina A" 
-          isDivak={isDivak} 
-          rok={rok} 
-        />
+        <RocnikOTCLTabulka matches={zapasySkupinaA} nazev="Dvouhra - Skupina A" isDivak={isDivak} rok={rok} />
       )}
       
       {zapasySkupinaB.length > 0 && (
-        <RocnikOTCLTabulka 
-          matches={zapasySkupinaB} 
-          nazev="Dvouhra muži - Skupina B" 
-          isDivak={isDivak} 
-          rok={rok} 
-        />
+        <RocnikOTCLTabulka matches={zapasySkupinaB} nazev="Dvouhra - Skupina B" isDivak={isDivak} rok={rok} />
+      )}
+      
+      {zapasyFinale.length > 0 && (
+        <RocnikOTCLTabulka matches={zapasyFinale} nazev="Dvouhra - Finále" isDivak={isDivak} rok={rok} />
+      )}
+      
+      {zapasyCtyrhra.length > 0 && (
+        <RocnikOTCLTabulka matches={zapasyCtyrhra} nazev="Čtyřhra" isDivak={isDivak} rok={rok} />
       )}
     </div>
   );
