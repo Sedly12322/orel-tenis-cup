@@ -26,6 +26,7 @@ const RODNICI = [
 
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [zobrazeni, setZobrazeni] = useState('klasicka'); // 'klasicka' nebo 'krizova'
 
   const smazatRok = async () => {
     const rokText = `rok ${rok}`;
@@ -98,20 +99,34 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         </button>
       </div>
       
-      {zapasySkupinaA.length > 0 && (
-        <RocnikOTCLTabulka matches={zapasySkupinaA} nazev="Dvouhra - Skupina A" isDivak={isDivak} rok={rok} />
-      )}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', flexWrap: 'wrap' }}>
+        <button onClick={() => setZobrazeni('klasicka')} style={{ padding: '10px 20px', fontSize: 'clamp(16px, 3vw, 20px)', background: zobrazeni === 'klasicka' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: zobrazeni === 'klasicka' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '8px 0 0 8px', cursor: 'pointer', fontWeight: 'bold' }}>Klasická tabulka</button>
+        <button onClick={() => setZobrazeni('krizova')} style={{ padding: '10px 20px', fontSize: 'clamp(16px, 3vw, 20px)', background: zobrazeni === 'krizova' ? '#007bff' : (isDivak ? '#444' : '#ddd'), color: zobrazeni === 'krizova' ? 'white' : (isDivak ? '#ccc' : '#333'), border: 'none', borderRadius: '0 8px 8px 0', cursor: 'pointer', fontWeight: 'bold' }}>Křížová tabulka</button>
+      </div>
       
-      {zapasySkupinaB.length > 0 && (
-        <RocnikOTCLTabulka matches={zapasySkupinaB} nazev="Dvouhra - Skupina B" isDivak={isDivak} rok={rok} />
-      )}
-      
-      {zapasyFinale.length > 0 && (
-        <RocnikOTCLTabulka matches={zapasyFinale} nazev="Dvouhra - Finále" isDivak={isDivak} rok={rok} />
-      )}
-      
-      {zapasyCtyrhra.length > 0 && (
-        <RocnikOTCLTabulka matches={zapasyCtyrhra} nazev="Čtyřhra" isDivak={isDivak} rok={rok} />
+      {zobrazeni === 'klasicka' ? (
+        <>
+          {zapasySkupinaA.length > 0 && (
+            <RocnikOTCLTabulka matches={zapasySkupinaA} nazev="Dvouhra - Skupina A" isDivak={isDivak} rok={rok} />
+          )}
+          
+          {zapasySkupinaB.length > 0 && (
+            <RocnikOTCLTabulka matches={zapasySkupinaB} nazev="Dvouhra - Skupina B" isDivak={isDivak} rok={rok} />
+          )}
+          
+          {zapasyFinale.length > 0 && (
+            <RocnikOTCLTabulka matches={zapasyFinale} nazev="Dvouhra - Finále" isDivak={isDivak} rok={rok} />
+          )}
+          
+          {zapasyCtyrhra.length > 0 && (
+            <RocnikOTCLTabulka matches={zapasyCtyrhra} nazev="Čtyřhra" isDivak={isDivak} rok={rok} />
+          )}
+        </>
+      ) : (
+        <>
+          <KrizovaTabulkaComponent matches={zapasySkupinaA} hraciList={hraciDvouhra} nazev="Skupina A" isDivak={isDivak} />
+          <KrizovaTabulkaComponent matches={zapasySkupinaB} hraciList={hraciDvouhra} nazev="Skupina B" isDivak={isDivak} />
+        </>
       )}
     </div>
   );
