@@ -192,8 +192,9 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
           (e.player1_name === z.player1 && e.player2_name === z.player2) ||
           (e.player1_name === z.player2 && e.player2_name === z.player1);
         if (!samePlayers) return false;
+        // Pro aktuální rok (year=null) kontrolujeme i skupinu
         if (year) return e.match_state?.archive_year === year && e.match_state?.skupina === skupina;
-        return !e.match_state?.archive_year;
+        return !e.match_state?.archive_year && e.match_state?.skupina === skupina;
       });
 
       if (!existujici) {
