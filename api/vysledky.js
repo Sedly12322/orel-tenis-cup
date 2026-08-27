@@ -1,6 +1,8 @@
 // api/vysledky.js - Serverless funkce pro Vercel
+export const runtime = 'nodejs';
+export const preferredRegion = 'iad1';
+
 export default async function handler(req, res) {
-  // Podpora OPTIONS pro CORS
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -10,10 +12,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Získej body jako string
     let body = req.body;
     if (typeof body === 'object' && body !== null) {
-      // Pokud je objekt, převeď na URL-encoded string
       body = new URLSearchParams(body).toString();
     }
     if (!body || body === 'undefined' || body === 'null') {
@@ -21,20 +21,24 @@ export default async function handler(req, res) {
     }
 
     console.log('[API] Request body:', body);
-    console.log('[API] Fetching from: https://orellichnov.cz/otcl/vysledky/');
+    console.log('[API] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[API] Runtime:', process.version);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch('https://orellichnov.cz/otcl/vysledky/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://orellichnov.cz/otcl/vysledky/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
       },
       body: body,
-      redirect: 'follow',
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     console.log('[API] Response status:', response.status);
 
@@ -49,17 +53,16 @@ export default async function handler(req, res) {
 
     const html = await response.text();
     console.log('[API] HTML length:', html.length);
-    
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(200).send(html);
   } catch (err) {
     console.error('[API] Exception:', err.message);
-    console.error('[API] Stack:', err.stack);
-    res.status(500).json({ 
+    console.error('[API] Stack:', err.stack?.split('\n').slice(0, 5).join('\n'));
+    res.status(500).json({
       error: err.message,
-      code: err.code,
-      type: err.type,
+      name: err.name,
       stack: err.stack?.split('\n').slice(0, 3).join('\n')
     });
   }

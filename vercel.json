@@ -1,16 +1,35 @@
 {
-  "rewrites": [
+  "version": 2,
+  "env": {
+    "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+  },
+  "builds": [
     {
-      "source": "/api/vysledky",
-      "destination": "/api/vysledky"
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     },
     {
-      "source": "/api/archiv",
-      "destination": "/api/archiv"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/vysledky",
+      "dest": "/api/vysledky.js",
+      "methods": ["POST", "OPTIONS"]
     },
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "/api/archiv",
+      "dest": "/api/archiv/index.js",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "headers": [
