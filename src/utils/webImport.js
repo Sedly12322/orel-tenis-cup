@@ -152,11 +152,9 @@ export async function importujDataZWebu(v1 = null, year = null) {
       const data = parsujTabuldoc(html, year);
       return { skupinaA: data.skupinaA, skupinaB: data.skupinaB, ctyrhra: [] };
     } else if (v1 === 61) {
-      // Pro aktuální rok (2026) je treba explicitně year=2026, jinak vrací prázdné
-      const effectYear = (year !== null) ? year : 2026;
-      const html = await stahniHtml(61, effectYear);
+      const html = await stahniHtml(61, year);
       // Pro v1=61 je vždy čtyřhra - parsuj čtyřhru samostatně
-      const ctyrhraData = parsujCtyrhrul(html, effectYear);
+      const ctyrhraData = parsujCtyrhrul(html, year);
       return { skupinaA: [], skupinaB: [], ctyrhra: ctyrhraData };
     } else {
       const [html60, html61] = await Promise.all([
