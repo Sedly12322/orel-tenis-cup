@@ -63,11 +63,11 @@ function parsujTabuldoc(html) {
     const nazevLower = nazevSkupiny.toLowerCase();
     const isCtyrhra = nazevLower.includes('čtyřhra') || nazevLower.includes('ctyrhra');
 
-    // Hráči z hlavičky (řádek 2, buňky od indexu 2)
+    // Hráči z hlavičky (řádek 2, všechny buňky jsou jména hráčů)
     const headerRow = rows[1];
     const headerCells = headerRow.querySelectorAll('td');
     const hraci = [];
-    for (let i = 2; i < headerCells.length; i++) {
+    for (let i = 0; i < headerCells.length; i++) {
       const text = getTextFromCell(headerCells[i]);
       if (text && !text.match(/^\d+$/)) {
         hraci.push(normalizujPar(text));
@@ -110,13 +110,13 @@ function parsujTabuldoc(html) {
     }
 
     if (isCtyrhra) {
-      vysledky.ctyrhra = zapasy;
+      vysledky.ctyrhra = [...vysledky.ctyrhra, ...zapasy];
     } else if (nazevSkupiny.includes('Finále')) {
-      vysledky.finalek = zapasy;
+      vysledky.finalek = [...vysledky.finalek, ...zapasy];
     } else if (nazevSkupiny.includes('Skupina A')) {
-      vysledky.skupinaA = zapasy;
+      vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
     } else if (nazevSkupiny.includes('Skupina B')) {
-      vysledky.skupinaB = zapasy;
+      vysledky.skupinaB = [...vysledky.skupinaB, ...zapasy];
     } else {
       vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
     }
