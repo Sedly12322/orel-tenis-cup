@@ -76,7 +76,12 @@ function getTextFromCell(cell) {
  */
 function parsujTabuldoc(html) {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Převedeme na malá písmena kvůli case-sensitive selectorům
+  // (web vrací <TABLE> místo <table>)
+  const lowerHtml = html.replace(/<(\/?)(TABLE|TR|TD|TH|TBODY|THEAD|TFOOT)/gi, function(match, slash, tag) {
+    return '<' + slash + tag.toLowerCase();
+  });
+  const doc = parser.parseFromString(lowerHtml, 'text/html');
   const tables = doc.querySelectorAll('table.vysledky');
   
   const vysledky = {
@@ -140,6 +145,8 @@ function parsujTabuldoc(html) {
       vysledky.skupinaA = zapasy;
     } else if (nazevSkupiny.includes('Skupina B')) {
       vysledky.skupinaB = zapasy;
+    } else if (nazevSkupiny.includes('Čtyřhra') || nazevSkupiny.toLowerCase().includes('čtyřhra')) {
+      vysledky.ctyrhra = zapasy;
     } else {
       // Neznámá skupina - přidat do A
       vysledky.skupinaA = [...vysledky.skupinaA, ...zapasy];
