@@ -27,7 +27,17 @@ const RODNICI = [
 
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [zobrazeni, setZobrazeni] = useState('klasicka'); // 'klasicka' nebo 'krizova'
+  const [zobrazeni, setZobrazeni] = useState('klasicka');
+  
+  // Guard clause - žádná data
+  if (!zapasy || !Array.isArray(zapasy) || zapasy.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
+        <p>Žádná data pro rok {rok}</p>
+        {isDivak && <p style={{ fontSize: '14px', color: '#666' }}>Zkuste vybrat jiný rok</p>}
+      </div>
+    );
+  }
 
   const smazatRok = async () => {
     const rokText = `rok ${rok}`;
@@ -52,14 +62,6 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
     }
     setIsDeleting(false);
   };
-
-  if (!zapasy || zapasy.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
-        <p>Žádná data pro rok {rok}</p>
-      </div>
-    );
-  }
 
   // Pro archivní roky: rozděl na skupiny podle match_state.skupina
   const zapasySkupinaA = zapasy.filter(z => z.match_state?.skupina === 'A');

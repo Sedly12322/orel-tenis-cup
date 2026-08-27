@@ -339,7 +339,14 @@ async function ulozDoDB(zapasy, rok, skupina, hraciStat) {
 }
 
 async function main() {
-  const rok = parseInt(process.argv[2]) || 2025;
+  const rokArg = process.argv[2];
+  const rok = rokArg ? parseInt(rokArg) : 2025;
+  
+  if (isNaN(rok)) {
+    console.error('❌ Neplatný rok. Použití: node import-archive.cjs [rok]');
+    console.error('   Příklad: node import-archive.cjs 2024');
+    process.exit(1);
+  }
   
   console.log('🏓 Orel Tenis Cup - Automatizovaný import archivu');
   console.log('==================================================');
