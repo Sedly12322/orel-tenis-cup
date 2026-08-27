@@ -1,5 +1,5 @@
-const https = require('https');
-const { URL } = require('url');
+import https from 'https';
+import { URL } from 'url';
 
 function fetchWithTls(targetUrl, postBody) {
   return new Promise((resolve, reject) => {
@@ -16,13 +16,9 @@ function fetchWithTls(targetUrl, postBody) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'identity',
         'Origin': 'https://orellichnov.cz',
         'Referer': 'https://orellichnov.cz/otcl/vysledky/',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
       },
       rejectUnauthorized: false,
     };
@@ -43,7 +39,7 @@ function fetchWithTls(targetUrl, postBody) {
   });
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -68,18 +64,7 @@ module.exports = async function handler(req, res) {
       body = 'v1=60&v2=&v3=';
     }
 
-    console.log('[API] Request body:', body);
-
     const result = await fetchWithTls('https://orellichnov.cz/otcl/vysledky/', body);
-    console.log('[API] Response status:', result.status, 'Length:', result.body.length);
-
-    // Check if response contains table
-    const hasTable = result.body.includes('class="vysledky"');
-    console.log('[API] Has table:', hasTable);
-    
-    if (!hasTable) {
-      console.warn('[API] No table in response, first 500 chars:', result.body.substring(0, 500));
-    }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -88,4 +73,4 @@ module.exports = async function handler(req, res) {
     console.error('[API] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
-};
+}

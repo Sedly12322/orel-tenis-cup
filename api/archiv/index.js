@@ -1,32 +1,36 @@
-const https = require('https');
-const { URL } = require('url');
+import https from 'https';
+import { URL } from 'url';
 
-function fetchUrl(targetUrl, postBody) {
+function fetchWithTls(targetUrl, postBody) {
   return new Promise((resolve, reject) => {
-    const url = new URL(targetUrl);
+    const parsedUrl = new URL(targetUrl);
     
     const options = {
-      hostname: url.hostname,
+      hostname: parsedUrl.hostname,
       port: 443,
-      path: url.pathname + url.search,
+      path: parsedUrl.pathname + parsedUrl.search,
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(postBody),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
+        'Origin': 'https://orellichnov.cz',
         'Referer': 'https://orellichnov.cz/otcl/archiv/',
+        'Connection': 'keep-alive',
       },
       rejectUnauthorized: false,
     };
     
     const req = https.request(options, (res) => {
       let data = '';
-      res.on('data', chunk => data += chunk);
+      res.on('data', chunk => { data += chunk; });
       res.on('end', () => resolve({ status: res.statusCode, body: data }));
     });
     
     req.on('error', (err) => reject(err));
-    req.setTimeout(15000, () => {
+    req.setTimeout(20000, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });
@@ -35,8 +39,11 @@ function fetchUrl(targetUrl, postBody) {
   });
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     return res.status(200).end();
   }
 
@@ -55,15 +62,13 @@ module.exports = async function handler(req, res) {
     }
     if (!body) body = '';
 
-    console.log('[API Archiv] Fetching from orellichnov.cz...');
-    const result = await fetchUrl('https://orellichnov.cz/otcl/archiv/', body);
-    console.log('[API Archiv] Response status:', result.status, 'Length:', result.body.length);
+    const result = await fetchWithTls('https://orellichnov.cz/otcl/archiv/', body);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(result.status).send(result.body);
+    res.status(200).send(result.body);
   } catch (err) {
     console.error('[API Archiv] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
-};
+}
