@@ -67,39 +67,31 @@ export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev, isDivak }) 
 
 import { jeCtyrhraPar } from '../utils/constants';
 
-// Čtyřhra - pár je uložen jako "Jméno1 / Jméno2" a v tabulce se zobrazuje na dvou řádcích
 export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
   const { staty } = vypocitejTabulku(matches, tymy);
 
-  const getScoreText = (radkovyTym, sloupcovyTym) => {
-    // Najdeme zápas s odpovídajícími týmy (podporujeme zkrácená i plná jména)
-    const match = matches.find(m => {
-      if (m.status !== 'finished') return false;
-      const p1 = m.player1_name;
-      const p2 = m.player2_name;
-      
-      // Porovnání s tímto týmem
-      const shodujeSe = (zapasJmeno, tym) => {
-        if (zapasJmeno === tym) return true;
-        // Zkusíme normalizované porovnání
-        return jeCtyrhraPar(zapasJmeno) && jeCtyrhraPar(tym);
-      };
-      
-      return (shodujeSe(p1, radkovyTym) && shodujeSe(p2, sloupcovyTym)) || 
-             (shodujeSe(p1, sloupcovyTym) && shodujeSe(p2, radkovyTym));
-    });
-    
-    if (!match || !match.match_state || !match.match_state.completed_sets) return "";
+  // Vytvoř matici výsledků pro rychlé O(1) vyhledávání
+  const matice = {};
+  matches.forEach(m => {
+    if (m.status !== 'finished' || !m.match_state?.completed_sets) return;
+    const p1 = m.player1_name;
+    const p2 = m.player2_name;
+    if (!matice[p1]) matice[p1] = {};
+    matice[p1][p2] = m;
+    if (!matice[p2]) matice[p2] = {};
+    matice[p2][p1] = m;
+  });
 
+  const getScoreText = (radkovyTym, sloupcovyTym) => {
+    const match = matice[radkovyTym]?.[sloupcovyTym];
+    if (!match || !match.match_state?.completed_sets) return "";
     let text = match.match_state.completed_sets.map(set => {
       if (match.player1_name === radkovyTym) return `${set.player1_games}-${set.player2_games}`;
-      else return `${set.player2_games}-${set.player1_games}`;
+      return `${set.player2_games}-${set.player1_games}`;
     }).join(', ');
-
     if (match.match_state.is_default) text += " (K)";
-
     return text;
-  }
+  };
 
   const cellStyle = { border: '1px solid #ccc', padding: '5px', fontSize: '13px' };
 
@@ -129,8 +121,8 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
                   {tym.split(' / ').map(j => <span key={j} style={{ display: 'block' }}>{j}</span>)}
                 </td>
                 {tymy.map((colTym, cIdx) => {
-                  if (rIdx === cIdx) return <td key={cIdx} style={{ ...cellStyle, background: isDivak ? '#444' : '#ddd' }}></td>
-                  return <td key={cIdx} style={{ ...cellStyle, whiteSpace: 'nowrap', color: isDivak ? '#ddd' : '#444' }}>{getScoreText(tym, colTym)}</td>
+                  if (rIdx === cIdx) return <td key={cIdx} style={{ ...cellStyle, background: isDivak ? '#444' : '#ddd' }}></td>;
+                  return <td key={cIdx} style={{ ...cellStyle, whiteSpace: 'nowrap', color: isDivak ? '#ddd' : '#444' }}>{getScoreText(tym, colTym)}</td>;
                 })}
                 <td style={{ ...cellStyle, fontWeight: 'bold', color: '#007bff' }}>{s.body}</td>
                 <td style={cellStyle}>{s.gamesW}:{s.gamesL}</td>
