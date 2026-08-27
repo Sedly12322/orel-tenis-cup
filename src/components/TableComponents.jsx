@@ -82,11 +82,54 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     matice[p2][p1] = m;
   });
 
+  const normalize = (s) => s.toLowerCase()
+    .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
+    .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
+    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
+    .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
+    .replace(/[^a-z0-9\s\/]/g, '').replace(/\s+/g, ' ').trim();
+
+  const namesMatch = (a, b) => {
+    if (a === b) return true;
+    const na = normalize(a);
+    const nb = normalize(b);
+    if (na === nb) return true;
+    // Match by last name + initial
+    const pa = na.split('/').map(s => s.trim());
+    const pb = nb.split('/').map(s => s.trim());
+    if (pa.length === 2 && pb.length === 2) {
+      for (let i = 0; i < 2; i++) {
+        const wa = pa[i].split(' ').filter(Boolean);
+        const wb = pb[i].split(' ').filter(Boolean);
+        if (wa.length === 0 || wb.length === 0) return false;
+        if (wa[wa.length-1] !== wb[wb.length-1]) return false;
+        if (wa[0]?.[0] !== wb[0]?.[0]) return false;
+      }
+      return true;
+    }
+    return false;
+  };
+
   const getScoreText = (radkovyTym, sloupcovyTym) => {
-    const match = matice[radkovyTym]?.[sloupcovyTym];
-    if (!match || !match.match_state?.completed_sets) return "";
+    // Try matrix first (fast)
+    let match = matice[radkovyTym]?.[sloupcovyTym] || matice[sloupcovyTym]?.[radkovyTym];
+    if (match) {
+      let text = match.match_state.completed_sets.map(set => {
+        if (match.player1_name === radkovyTym || namesMatch(match.player1_name, radkovyTym)) return `${set.player1_games}-${set.player2_games}`;
+        return `${set.player2_games}-${set.player1_games}`;
+      }).join(', ');
+      if (match.match_state.is_default) text += " (K)";
+      return text;
+    }
+    // Fallback: fuzzy search
+    match = matches.find(m => {
+      if (m.status !== 'finished' || !m.match_state?.completed_sets) return false;
+      return (namesMatch(m.player1_name, radkovyTym) && namesMatch(m.player2_name, sloupcovyTym)) ||
+             (namesMatch(m.player1_name, sloupcovyTym) && namesMatch(m.player2_name, radkovyTym));
+    });
+    if (!match) return "";
     let text = match.match_state.completed_sets.map(set => {
-      if (match.player1_name === radkovyTym) return `${set.player1_games}-${set.player2_games}`;
+      if (match.player1_name === radkovyTym || namesMatch(match.player1_name, radkovyTym)) return `${set.player1_games}-${set.player2_games}`;
       return `${set.player2_games}-${set.player1_games}`;
     }).join(', ');
     if (match.match_state.is_default) text += " (K)";
