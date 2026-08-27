@@ -49,7 +49,7 @@ function parsujTabuldoc(html) {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
 
-    // Najdi řádek s hlavičkou (první řádek s jmény hráčů obsahující "/")
+    // Najdi řádek s hlavičkou (první řádek s jmény hráčů - obsahuje "/" nebo "\n" po getTextFromCell)
     let headerRowIdx = -1;
     let hraci = [];
     for (let i = 0; i < rows.length; i++) {
@@ -57,7 +57,8 @@ function parsujTabuldoc(html) {
       const foundHraci = [];
       for (let j = 0; j < cells.length; j++) {
         const text = getTextFromCell(cells[j]);
-        if (text && text.includes('/')) {
+        // Jména párů obsahují "/" nebo "\n" (po převodu <BR> na \n) - ostatní (čísla, "Body"...) přeskočit
+        if (text && (text.includes('/') || text.includes('\n'))) {
           foundHraci.push(normalizujPar(text));
         }
       }
