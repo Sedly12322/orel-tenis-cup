@@ -49,35 +49,47 @@ function parsujTabuldoc(html) {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
 
-    // Skupina z názvu před tabulkou
-    let nazevSkupiny = '';
-    let prev = table.previousElementSibling;
-    while (prev) {
-      if (prev.tagName === 'H2' || prev.tagName === 'H3') {
-        nazevSkupiny = prev.textContent.trim();
+    // Najdi řádek s hlavičkou (první řádek s jmény hráčů obsahující "/")
+    let headerRowIdx = -1;
+    let hraci = [];
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i].querySelectorAll('td');
+      const foundHraci = [];
+      for (let j = 0; j < cells.length; j++) {
+        const text = getTextFromCell(cells[j]);
+        if (text && text.includes('/')) {
+          foundHraci.push(normalizujPar(text));
+        }
+      }
+      if (foundHraci.length > 0) {
+        headerRowIdx = i;
+        hraci = foundHraci;
         break;
       }
-      prev = prev.previousElementSibling;
+    }
+
+    if (headerRowIdx === -1 || hraci.length === 0) return;
+
+    // Najdi název skupiny z řádků před hlavičkou
+    let nazevSkupiny = '';
+    for (let i = headerRowIdx - 1; i >= 0; i--) {
+      const cells = rows[i].querySelectorAll('td');
+      for (let j = 0; j < cells.length; j++) {
+        const text = getTextFromCell(cells[j]);
+        if (text && text.length > 0) {
+          nazevSkupiny = text;
+          break;
+        }
+      }
+      if (nazevSkupiny) break;
     }
 
     const nazevLower = nazevSkupiny.toLowerCase();
     const isCtyrhra = nazevLower.includes('čtyřhra') || nazevLower.includes('ctyrhra');
 
-    // Hráči z hlavičky (řádek 2) - jen buňky s lomítkm (jména párů)
-    const headerRow = rows[1];
-    const headerCells = headerRow.querySelectorAll('td');
-    const hraci = [];
-    for (let i = 0; i < headerCells.length; i++) {
-      const text = getTextFromCell(headerCells[i]);
-      // Jména párů obsahují "/" - ostatní (čísla, "Body"...) přeskočit
-      if (text && text.includes('/')) {
-        hraci.push(normalizujPar(text));
-      }
-    }
-
-    // Zpracuj zápasy (jen horní trojúhelník - každý zápas jednou)
+    // Zpracuj datové řádky
     const zapasy = [];
-    for (let i = 2; i < rows.length; i++) {
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
       if (cells.length < 3) continue;
 
@@ -88,23 +100,17 @@ function parsujTabuldoc(html) {
       const hrac1 = normalizujPar(getTextFromCell(cells[1]));
       if (!hrac1 || hrac1 === 'XX') continue;
 
-      // Skóre začínají od buňky 2 (buňka 0=ID, 1=jméno)
-      for (let j = 2; j < cells.length - 3; j++) {
+      // Skóre: buňka 2 = hráč 1 (diagonála), buňka 3 = hráč 2, atd.
+      for (let j = 2; j < cells.length; j++) {
         const hrac2Index = j - 2;
-        if (hrac2Index < 0 || hrac2Index >= hraci.length) continue;
-        // Horní trojúhelník: přeskočit, pokud je hrac2Index <= hrac1Index
-        // (to zajistí, že každý zápas je zpracován pouze jednou)
-        if (hrac2Index <= hrac1Index) continue;
+        if (hrac2Index >= hraci.length) break;
+        if (hrac2Index <= hrac1Index) continue; // Horní trojúhelník
 
         const skore = getTextFromCell(cells[j]);
         if (skore && skore !== 'XX' && !skore.match(/^\d+$/)) {
           const hrac2 = hraci[hrac2Index];
           if (hrac2 && hrac2 !== 'XX' && hrac2 !== hrac1) {
-            zapasy.push({
-              player1: hrac1,
-              player2: hrac2,
-              score: skore
-            });
+            zapasy.push({ player1: hrac1, player2: hrac2, score: skore });
           }
         }
       }
