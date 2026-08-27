@@ -63,13 +63,14 @@ function parsujTabuldoc(html) {
     const nazevLower = nazevSkupiny.toLowerCase();
     const isCtyrhra = nazevLower.includes('čtyřhra') || nazevLower.includes('ctyrhra');
 
-    // Hráči z hlavičky (řádek 2, všechny buňky jsou jména hráčů)
+    // Hráči z hlavičky (řádek 2) - jen buňky s lomítkm (jména párů)
     const headerRow = rows[1];
     const headerCells = headerRow.querySelectorAll('td');
     const hraci = [];
     for (let i = 0; i < headerCells.length; i++) {
       const text = getTextFromCell(headerCells[i]);
-      if (text && !text.match(/^\d+$/)) {
+      // Jména párů obsahují "/" - ostatní (čísla, "Body"...) přeskočit
+      if (text && text.includes('/')) {
         hraci.push(normalizujPar(text));
       }
     }
