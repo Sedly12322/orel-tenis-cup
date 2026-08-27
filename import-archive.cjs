@@ -119,7 +119,7 @@ function parsujTabulku(table) {
   return { zapasy, hraciStat };
 }
 
-async function stahniarchivZWebu(rok) {
+async function stahniArchiv(rok) {
   console.log(`\n=== Stahuji rok ${rok} ===`);
   
   const browser = await chromium.launch({ headless: true });
@@ -132,46 +132,53 @@ async function stahniarchivZWebu(rok) {
   
   try {
     const page = await context.newPage();
-    await page.goto('https://orellichnov.cz/otcl/vysledky/', { waitUntil: 'networkidle' });
     
-    // Vyber rok a odešli formulář
-    await page.selectOption('select[name="year"]', String(rok));
-    await page.click('input[name="show_archive_submit"]');
-    await page.waitForLoadState('networkidle');
+    // ===== DVOUHRA =====
+    // Navigace na archiv/{rok}/ a kliknutí na "Dvouhra muži"
+    await page.goto(`https://orellichnov.cz/otcl/archiv/${rok}/`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     
     // Klikni na "Dvouhra muži" - JavaScript odešle formulář
     const dvouhraResult = await page.evaluate(() => {
+      // Zkus nejdřív <a> tagy
       const links = document.querySelectorAll('a');
       for (const link of links) {
         if (link.textContent.includes('Dvouhra muži')) {
-          // Submit the form with v1=58
-          const form = document.getElementById('F1');
-          if (form) {
-            form.v1.value = '58';
-            form.submit();
-            return { success: true, method: 'form_submit' };
-          }
           link.click();
-          return { success: true, method: 'click' };
+          return { clicked: true, method: 'a_tag' };
         }
       }
-      return { success: false };
+      
+      // Pak zkus <span> tagy s onclick
+      const spans = document.querySelectorAll('span');
+      for (const span of spans) {
+        if (span.textContent.includes('Dvouhra muži') && span.onclick) {
+          span.click();
+          return { clicked: true, method: 'span_onclick' };
+        }
+      }
+      
+      // Nakonec zkus jakýkoli element s textem
+      const allElements = document.querySelectorAll('*');
+      for (const el of allElements) {
+        if (el.textContent.trim() === 'Dvouhra muži' && el.onclick) {
+          el.click();
+          return { clicked: true, method: 'any_onclick' };
+        }
+      }
+      
+      return { clicked: false };
     });
     
     console.log(`📌 Dvouhra klik: ${JSON.stringify(dvouhraResult)}`);
     
-    // Počkej na načtení
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     
+    console.log(`📌 URL po dvouhře: ${page.url()}`);
+    
     // Získej HTML
     const html = await page.content();
-    
-    // Ulož pro debug
-    const fs = require('fs');
-    fs.writeFileSync(`archiv-${rok}-dvouhra-playwright.html`, html, 'utf8');
-    console.log(`📌 HTML uložen do archiv-${rok}-dvouhra-playwright.html`);
     
     // Parsuj HTML
     const dom = new JSDOM(html);
@@ -219,45 +226,59 @@ async function stahniarchivZWebu(rok) {
     console.log(`✅ Skupina B: ${vysledky.skupinaB.length} zápasů`);
     console.log(`✅ Finále: ${vysledky.finalek.length} zápasů`);
     
-    // Čtyřhra
-    await page.goto('https://orellichnov.cz/otcl/vysledky/', { waitUntil: 'networkidle' });
-    await page.selectOption('select[name="year"]', String(rok));
-    await page.click('input[name="show_archive_submit"]');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-    
-    await page.evaluate(() => {
-      const links = document.querySelectorAll('a');
-      for (const link of links) {
-        if (link.textContent.includes('Čtyřhra')) {
-          const form = document.getElementById('F1');
-          if (form) {
-            form.v1.value = '59';
-            form.submit();
-            return true;
-          }
-          link.click();
-          return true;
-        }
-      }
-      return false;
-    });
-    
-    await page.waitForLoadState('networkidle');
+    // ČTYŘHRA
+    await page.goto(`https://orellichnov.cz/otcl/archiv/${rok}/`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(3000);
     
-    const ctyrhraHtml = await page.content();
-    const ctyrhraDom = new JSDOM(ctyrhraHtml);
-    const ctyrhraDoc = ctyrhraDom.window.document;
+    // Zkus kliknout na Čtyžrá víckrát - občas to potřebuje
+    let ctyrhraTablesCount = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await page.evaluate(() => {
+        const links = document.querySelectorAll('a');
+        for (const link of links) {
+          if (link.textContent.includes('Čtyřhra') && !link.textContent.includes('limited')) {
+            link.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      
+      await page.waitForTimeout(2000);
+      
+      ctyrhraTablesCount = await page.evaluate(() => {
+        return document.querySelectorAll('table.vysledky').length;
+      });
+      
+      console.log(`📌 Čtyřhra pokus ${attempt + 1}: ${ctyrhraTablesCount} tabulek`);
+      
+      if (ctyrhraTablesCount > 0) break;
+    }
     
-    const ctyrhraTables = ctyrhraDoc.querySelectorAll('table.vysledky');
-    console.log(`\n📌 Čtyřhra - tabulek: ${ctyrhraTables.length}`);
+    // Získej čtyřhru tabulky
+    const ctyrhraTableData = await page.evaluate(() => {
+      const tables = document.querySelectorAll('table.vysledky');
+      return Array.from(tables).map((table, idx) => {
+        let nazev = '';
+        let el = table;
+        while (el.previousElementSibling) {
+          el = el.previousElementSibling;
+          if (el.tagName === 'H3') {
+            nazev = el.textContent.trim();
+            break;
+          }
+        }
+        return { idx, nazev, html: table.outerHTML };
+      });
+    });
     
-    ctyrhraTables.forEach((table, idx) => {
-      const { zapasy, hraciStat: stat } = parsujTabulku(table);
+    for (const { nazev, html } of ctyrhraTableData) {
+      const dom = new JSDOM(`<table>${html}</table>`);
+      const tableEl = dom.window.document.querySelector('table');
+      const { zapasy, hraciStat: stat } = parsujTabulku(tableEl);
       vysledky.ctyrhra.push(...zapasy);
       Object.assign(vysledky.hraciStat, stat);
-    });
+    }
     
     console.log(`✅ Čtyřhra: ${vysledky.ctyrhra.length} zápasů`);
     
@@ -353,7 +374,7 @@ async function main() {
   console.log(`📅 Ročník: ${rok}`);
   
   // Stáhni data
-  const data = await stahniarchivZWebu(rok);
+  const data = await stahniArchiv(rok);
   
   // Ulož do DB
   console.log('\n=== Ukládám do databáze ===');
