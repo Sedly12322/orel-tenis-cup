@@ -117,7 +117,7 @@ function parsujTabuldoc(html) {
       }
     }
     
-    // Parsuj zápasy
+    // Parsuj zápasy (jen horní trojúhelník - ne dvojité zápasy)
     const zapasy = [];
     for (let i = 2; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
@@ -126,7 +126,12 @@ function parsujTabuldoc(html) {
       const hrac1 = normalizujPar(getTextFromCell(cells[1]));
       if (!hrac1 || hrac1 === 'XX') continue;
       
+      const hrac1Index = i - 2;
+      
       for (let j = 2; j < cells.length - 3; j++) {
+        const hrac2Index = j - 2;
+        if (hrac2Index >= hrac1Index) continue; // Horní trojúhelník
+        
         const skore = getTextFromCell(cells[j]);
         if (skore && skore !== 'XX' && (j - 2) < hraci.length) {
           const hrac2 = normalizujPar(hraci[j - 2]);
