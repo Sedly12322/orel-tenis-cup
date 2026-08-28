@@ -1,7 +1,11 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
+const path = require('path');
 
 const ROKY = [2025, 2024];
+
+// Skript běží z kořene repo i z podadresáře scripts/
+const REPO_ROOT = process.cwd().endsWith('scripts') ? process.cwd().replace('/scripts', '') : process.cwd();
 
 async function stahniArchiv(rok) {
   console.log(`\n=== Stahuji rok ${rok} ===`);
@@ -34,7 +38,7 @@ async function stahniArchiv(rok) {
     // Získej HTML
     const html = await page.content();
     const filename = `archiv-${rok}-ctyrhra.html`;
-    fs.writeFileSync(filename, html, 'utf8');
+    fs.writeFileSync(path.join(REPO_ROOT, filename), html, 'utf8');
     console.log(`✅ Čtyřhra: ${filename}`);
     
     // Zpět a kliknout na "Dvouhra muži"
@@ -53,7 +57,7 @@ async function stahniArchiv(rok) {
     
     const html2 = await page.content();
     const filename2 = `archiv-${rok}-dvouhra.html`;
-    fs.writeFileSync(filename2, html2, 'utf8');
+    fs.writeFileSync(path.join(REPO_ROOT, filename2), html2, 'utf8');
     console.log(`✅ Dvouhra: ${filename2}`);
     
   } catch (err) {

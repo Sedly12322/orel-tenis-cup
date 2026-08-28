@@ -27,7 +27,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     await supabase.from('matches').update({ status: 'finished', match_state: st }).eq('id', activeMatchId);
     await posunoutVitezeVPlayoff(supabase);
     await posunoutVitezeVCtyrhre(supabase);
-    zpetDoMenu();
+          zpetDoMenu();
   }
 
   const kontumovatZapas = async (vitezId) => {
@@ -48,7 +48,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
       await posunoutVitezeVPlayoff(supabase);
-    await posunoutVitezeVCtyrhre(supabase);
+      await posunoutVitezeVCtyrhre(supabase);
       zpetDoMenu();
     }
   }
@@ -70,7 +70,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       setScore(st);
       await supabase.from('matches').update({ match_state: st, status: 'finished' }).eq('id', activeMatchId);
       await posunoutVitezeVPlayoff(supabase);
-    await posunoutVitezeVCtyrhre(supabase);
+      await posunoutVitezeVCtyrhre(supabase);
       zpetDoMenu();
     }
   }
@@ -125,20 +125,29 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
 
     if (st.is_tiebreak) {
       let b1 = parseInt(p1) || 0; let b2 = parseInt(p2) || 0;
-      hrac === 1 ? b1++ : b2++;
+      if (hrac === 1) b1++; else b2++;
       if ((b1 + b2) % 2 !== 0) st.server = st.server === 1 ? 2 : 1;
       if ((b1 >= 7 && b1 - b2 >= 2) || (b2 >= 7 && b2 - b1 >= 2)) { 
         vyhralGem = true; tbScore = `${b1}:${b2}`;
         if (isMatchTiebreak) matchTbPoints = { p1: b1, p2: b2 };
-        else hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; 
+        if (hrac === 1) st.current_set.player1_games++; else st.current_set.player2_games++; 
       } else { st.current_game.player1_points = b1.toString(); st.current_game.player2_points = b2.toString(); }
     } else {
       let v = hrac === 1 ? p1 : p2; let p = hrac === 1 ? p2 : p1;
       if (v === "0") v = "15"; else if (v === "15") v = "30"; else if (v === "30") v = "40";
       else if (v === "40") { if (p === "40") v = "AD"; else if (p === "AD") p = "40"; else vyhralGem = true; } 
       else if (v === "AD") vyhralGem = true;
-      if (hrac === 1) { st.current_game.player1_points = v; st.current_game.player2_points = p; } else { st.current_game.player2_points = v; st.current_game.player1_points = p; }
-      if (vyhralGem) { hrac === 1 ? st.current_set.player1_games++ : st.current_set.player2_games++; st.server = st.server === 1 ? 2 : 1; }
+      if (hrac === 1) {
+        st.current_game.player1_points = v;
+        st.current_game.player2_points = p;
+      } else {
+        st.current_game.player2_points = v;
+        st.current_game.player1_points = p;
+      }
+      if (vyhralGem) {
+        if (hrac === 1) st.current_set.player1_games++; else st.current_set.player2_games++;
+        st.server = st.server === 1 ? 2 : 1;
+      }
     }
 
     if (vyhralGem) {
@@ -154,13 +163,13 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       
       if (isMatchTiebreak) {
         st.completed_sets.push({ player1_games: matchTbPoints.p1, player2_games: matchTbPoints.p2 });
-        hrac === 1 ? st.sets_won.player1++ : st.sets_won.player2++;
+        if (hrac === 1) st.sets_won.player1++; else st.sets_won.player2++;
         st.current_set = { player1_games: 0, player2_games: 0 }; st.is_tiebreak = false;
       } else {
         const g1 = st.current_set.player1_games; const g2 = st.current_set.player2_games;
         if ((g1 >= 6 && g1 - g2 >= 2) || (g1 === 7 && g2 === 5) || (g1 === 7 && g2 === 6) || (g2 >= 6 && g2 - g1 >= 2) || (g2 === 7 && g1 === 5) || (g2 === 7 && g1 === 6)) {
           st.completed_sets.push({ player1_games: g1, player2_games: g2 });
-          g1 > g2 ? st.sets_won.player1++ : st.sets_won.player2++;
+          if (g1 > g2) st.sets_won.player1++; else st.sets_won.player2++;
           st.current_set = { player1_games: 0, player2_games: 0 }; 
           st.is_tiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
         } else if (g1 === 6 && g2 === 6) st.is_tiebreak = true;

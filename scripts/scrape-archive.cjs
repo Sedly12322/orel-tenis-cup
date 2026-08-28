@@ -135,7 +135,7 @@ async function stahniArchiv(rok) {
       // Najdi hlavičku - h3 před tabulkou
       let nazevSkupiny = '';
       let prev = await table.evaluateHandle(el => el.previousElementSibling);
-      let prevHtml = await prev.jsonValue().catch(() => null);
+      let _prevHtml = await prev.jsonValue().catch(() => null);
       
       // Zkus najít h3 v okolí
       const sectionHtml = await page.evaluate((tableIdx) => {

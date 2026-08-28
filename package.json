@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "scrape:archiv": "node scripts/archiv-scraper.cjs",
+    "import:archiv": "node scripts/import-archive.cjs",
+    "archiv:download": "node scripts/archiv-import.cjs",
+    "test:ctyrhra": "node scripts/test_ctyrhra.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

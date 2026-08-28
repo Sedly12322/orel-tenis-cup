@@ -20,7 +20,6 @@ function App() {
   const [hraciList, setHraciList] = useState([]);
   const [novyHracJmeno, setNovyHracJmeno] = useState('');
   const [typTabulky, setTypTabulky] = useState('krizova');
-  const [selectedYear, setSelectedYear] = useState(2026);
   
   const [score, setScore] = useState(null);
 
@@ -198,7 +197,6 @@ function App() {
         typTabulky={typTabulky} setTypTabulky={setTypTabulky} 
         tvMessage={tvMessage}
         tvMessageInput={tvMessageInput} setTvMessageInput={setTvMessageInput} ulozitTvZpravu={ulozitTvZpravu}
-        selectedYear={selectedYear}
         supabase={supabase}
         onDataChange={nactiZapasy}
       />

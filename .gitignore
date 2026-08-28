@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 litellm_config.yaml
+
+# Generated archives and test artifacts
+archiv-*.html
+archiv-data.json
+temp_*.html
+*.pdf

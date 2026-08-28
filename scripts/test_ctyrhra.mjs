@@ -30,7 +30,6 @@ const req = https.request(options, (res) => {
     const h3Matches = data.match(/<H3[^>]*>([^<]+)<\/H3>/gi);
     if (h3Matches) console.log('H3s:', h3Matches.map(m => m.replace(/<[^>]+>/g,'').trim()).join(' | '));
     
-    const tableCount = (data.match(/<table[^>]*class=["']vysledky["']/gi) || []).length;
     const tables = (data.match(/<table[^>]*class=["']vysledky["']/gi) || []);
     console.log('Tables count:', tables.length);
     

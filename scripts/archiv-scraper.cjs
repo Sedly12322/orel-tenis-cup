@@ -1,8 +1,12 @@
 // archiv-scraper.cjs - Stáhne a parsuje archivní data z orellichnov.cz
 const { chromium } = require('playwright');
 const fs = require('fs');
+const path = require('path');
 
 const ROKY = [2025, 2024, 2023];
+
+// Skript běží z kořene repo i z podadresáře scripts/
+const REPO_ROOT = process.cwd().endsWith('scripts') ? process.cwd().replace('/scripts', '') : process.cwd();
 
 function parseHTML(html) {
   const tables = [];
@@ -10,7 +14,7 @@ function parseHTML(html) {
   const doc = parser.window.document;
   
   const tablesEl = doc.querySelectorAll('table.vysledky');
-  tablesEl.forEach((table, idx) => {
+  tablesEl.forEach((table, _idx) => {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
     
@@ -106,7 +110,7 @@ async function main() {
   }
   
   // Ulož do JSON
-  fs.writeFileSync('archiv-data.json', JSON.stringify(allData, null, 2), 'utf8');
+  fs.writeFileSync(path.join(REPO_ROOT, 'archiv-data.json'), JSON.stringify(allData, null, 2), 'utf8');
   console.log('\n✅ Data uložena do archiv-data.json');
   
   await browser.close();

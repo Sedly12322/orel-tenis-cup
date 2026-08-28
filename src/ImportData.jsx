@@ -1,27 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase';
 import { importujDataZWebu, prevedNaZapasy } from './utils/webImport';
-import { jeCtyrhraPar, HRACI_SKUPINA_A, HRACI_SKUPINA_B } from './utils/constants';
-
-const RODNICI = [
-  { rok: 2025, popis: '17. ročník - 2025' },
-  { rok: 2024, popis: '16. ročník - 2024' },
-  { rok: 2023, popis: '15. ročník - 2023' },
-  { rok: 2022, popis: '14. ročník - 2022' },
-  { rok: 2021, popis: '13. ročník - 2021' },
-  { rok: 2020, popis: '12. ročník - 2020' },
-  { rok: 2019, popis: '11. ročník - 2019' },
-  { rok: 2018, popis: '10. ročník - 2018' },
-  { rok: 2017, popis: '9. ročník - 2017' },
-  { rok: 2016, popis: '8. ročník - 2016' },
-  { rok: 2015, popis: '7. ročník - 2015' },
-  { rok: 2014, popis: '6. ročník - 2014' },
-  { rok: 2013, popis: '5. ročník - 2013' },
-  { rok: 2012, popis: '4. ročník - 2012' },
-  { rok: 2011, popis: '3. ročník - 2011' },
-  { rok: 2010, popis: '2. ročník - 2010' },
-  { rok: 2009, popis: '1. ročník - 2009' },
-];
+import { jeCtyrhraPar, RODNICI } from './utils/constants';
 
 // Pomocné funkce pro parsování HTML mimo komponentu
 function normalizujPar(raw) {
@@ -30,24 +10,6 @@ function normalizujPar(raw) {
     .map(j => j.replace(/^[\s]+|[\s]+$/g, ''))
     .filter(Boolean);
   return jmena.join(' / ');
-}
-
-function parsujScore(scoreStr) {
-  const sets = [];
-  if (!scoreStr || scoreStr.includes('K')) return sets;
-  
-  const casti = scoreStr.split(',').map(s => s.trim());
-  for (const cast of casti) {
-    const match = cast.match(/^(\d+)-(\d+)/);
-    if (match) {
-      let g1 = parseInt(match[1]);
-      let g2 = parseInt(match[2]);
-      if (g1 > 9 && ![10,11,12,13,14,15].includes(g1)) g1 = parseInt(match[1].charAt(0));
-      if (g2 > 9 && ![10,11,12,13,14,15].includes(g2)) g2 = parseInt(match[2].charAt(0));
-      sets.push({ player1_games: g1, player2_games: g2 });
-    }
-  }
-  return sets;
 }
 
 function getTextFromCell(cell) {

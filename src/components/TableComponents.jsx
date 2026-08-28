@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { vypocitejTabulku } from '../utils/gameLogic'
+import { normalize } from '../utils/constants';
 
 const zkraceneJmeno = (jmeno) => {
   if (!jmeno) return "";
@@ -19,7 +20,7 @@ export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev, isDivak }) 
       else return `${set.player2_games}:${set.player1_games}`;
     }).join(', ');
 
-    // Přidání písmena (K) jako označení kontumace, přesně jako ve vašem Excelu
+    // Přidání písmene (K) jako označení kontumace, přesně jako ve vašem Excelu
     if (match.match_state.is_default) {
         text += " (K)";
     }
@@ -66,28 +67,16 @@ export const KrizovaTabulkaComponent = ({ matches, hraciList, nazev, isDivak }) 
   )
 }
 
-import { jeCtyrhraPar } from '../utils/constants';
-
 export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
   const { staty } = vypocitejTabulku(matches, tymy);
 
-  // Normalizační funkce pro porovnávání názvů (ignoruje diakritiku, velikost písem)
-  const normalize = (s) => s.toLowerCase()
-    .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
-    .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
-    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
-    .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
-    .replace(/[ľ]/g, 'l').replace(/[ą]/g, 'a').replace(/[ę]/g, 'e')
-    .replace(/[ů]/g, 'u').replace(/[yý]/g, 'y').replace(/[ł]/g, 'l')
-    .replace(/[^a-z0-9\s\/]/g, '').replace(/\s+/g, ' ').trim();
-
-  // Rozděli název páru na dva názvy hráčů podle '/' nebo mezery
+  // Rozdeli nazev paru na dva nazvy hracu podle '/' nebo mezery
   const rozdelPar = (nazev) => {
     const norm = normalize(nazev);
-    // Nejprve zkus '/' jako oddělovač
+    // Nejprve zkus '/' jako oddelovac
     const parts = norm.split('/').map(s => s.trim());
     if (parts.length === 2) return parts;
-    // Jinak zkus rozdělit podle mezer (předpokládáme "Jmeno Prijmeni Jmeno2 Prijmeni2")
+    // Jinak zkus rozdelit podle mezer (predpokladame "Jmeno Prijmeni Jmeno2 Prijmeni2")
     const words = norm.split(' ').filter(Boolean);
     if (words.length >= 4) {
       return [words.slice(0, Math.floor(words.length / 2)).join(' '), words.slice(Math.floor(words.length / 2)).join(' ')];
@@ -98,7 +87,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     return [norm];
   };
 
-  // Porovná dva názvy párů - podporuje různé formáty (dlouhá/kratší jména)
+  // Porovna dva nazvy paru - podporuje ruzne formaty (dlouha/kratka jmena)
   const namesMatch = (a, b) => {
     if (!a || !b) return false;
     if (a === b) return true;
@@ -110,7 +99,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     const pb = rozdelPar(nb);
     if (pa.length !== 2 || pb.length !== 2) return false;
 
-    // Pro každou stranu páru porovnej příjmení a iniciály
+    // Pro kazdou stranu paru porovnej prijmeni a inicialy
     for (let i = 0; i < 2; i++) {
       const wa = pa[i].split(' ').filter(Boolean);
       const wb = pb[i].split(' ').filter(Boolean);
@@ -121,7 +110,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     return true;
   };
 
-  // Vytvoř matici výsledků s normalizovanými klíči pro robustní vyhledávání
+  // Vytvor matici vysledku s normalizovanymi klici pro robustni vyhledavani
   const matchList = matches.filter(m => m.status === 'finished' && m.match_state?.completed_sets);
   const matice = {};
   matchList.forEach(m => {
@@ -133,7 +122,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     matice[p2][p1] = m;
   });
 
-  // Webová data (body/pořadí ze stránky) pro archivní čtyřhu
+  // Webova data (body/poradi ze stranky) pro archivni ctyrhu
   const webStat = useMemo(() => {
     const map = {};
     matchList.forEach(m => {
@@ -148,20 +137,20 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     return map;
   }, [matchList]);
 
-  // Najdi zápas mezi dvěma týmy pomocí přesného nebo fuzzy hledání
+  // Najdi zapas mezi dvema tymi pomoci presneho nebo fuzzy hledani
   const najdiZapas = (tym1, tym2) => {
-    // 1. Přesné hledání v matici
+    // 1. Presne hledani v matici
     let match = matice[tym1]?.[tym2] || matice[tym2]?.[tym1];
     if (match) return match;
 
-    // 2. Hledání pomocí namesMatch
+    // 2. Hledani pomoci namesMatch
     match = matchList.find(m => {
       return (namesMatch(m.player1_name, tym1) && namesMatch(m.player2_name, tym2)) ||
              (namesMatch(m.player1_name, tym2) && namesMatch(m.player2_name, tym1));
     });
     if (match) return match;
 
-    // 3. Hledání pomocí normalizovaných klíčů
+    // 3. Hledani pomoci normalizovanych klicu
     const n1 = normalize(tym1);
     const n2 = normalize(tym2);
     match = matchList.find(m => {
@@ -172,14 +161,14 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     return match || null;
   };
 
-  // Najdi webová data (body/pořadí) pro tým pomocí přesného nebo fuzzy hledání
+  // Najdi webova data (body/poradi) pro tym pomoci presneho nebo fuzzy hledani
   const najdiWebStat = (tym) => {
     if (webStat[tym]) return webStat[tym];
-    // Fuzzy hledání pomocí namesMatch
+    // Fuzzy hledani pomoci namesMatch
     for (const key of Object.keys(webStat)) {
       if (namesMatch(key, tym)) return webStat[key];
     }
-    // Hledání pomocí normalizovaného klíče
+    // Hledani pomoci normalizovaneho klice
     const nt = normalize(tym);
     for (const key of Object.keys(webStat)) {
       if (normalize(key) === nt) return webStat[key];
@@ -203,7 +192,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
 
   const cellStyle = { border: '1px solid #ccc', padding: '5px', fontSize: '13px' };
 
-  // Nezobrazovat prázdnou tabulku, pokud nejsou žádné zápasy
+  // Nezobrazovat prazdnou tabulku, kdyz nejsou zadne zapasy
   const { serazeni: vysledky } = vypocitejTabulku(matches, tymy);
   if (vysledky.length === 0) return null;
 
@@ -225,9 +214,9 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
         </thead>
         <tbody>
           {tymy.map((tym, rIdx) => {
-            // Vypočti statistiky pomocí vypocitejTabulku
+            // Vypocist statistiky pomoci vypocitejTabulku
             const s = staty[tym] || { body: 0, gamesW: 0, gamesL: 0, poradi: rIdx + 1 };
-            // Doplníme webová data (body/pořadí) pokud jsou k dispozici (archivní data)
+            // Doplnime webova data (body/poradi) kdyz jsou k dispozici (archivni data)
             const ws = najdiWebStat(tym);
             const body = (ws && ws.body != null) ? ws.body : s.body;
             const poradi = (ws && ws.poradi != null) ? ws.poradi : s.poradi;
@@ -254,7 +243,7 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
   )
 }
 
-// Klasická tabulka čtyřhry - páry seřazené podle bodů
+// Klasická tabulka ctyrhry - pary serazene podle bodu
 export const CtyrhraSkupinaTable = ({ matches, tymy, nazev, isDivak }) => {
   const { serazeni: vysledky } = vypocitejTabulku(matches, tymy);
   if (vysledky.length === 0) return null;

@@ -1,29 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import RocnikOTCLTabulka from './RocnikOTCLTabulka';
 import ArchivKrizovaTabulka from './ArchivKrizovaTabulka';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar } from '../utils/constants';
-
-const RODNICI = [
-  { rok: 2025, popis: '17. ročník - 2025' },
-  { rok: 2024, popis: '16. ročník - 2024' },
-  { rok: 2023, popis: '15. ročník - 2023' },
-  { rok: 2022, popis: '14. ročník - 2022' },
-  { rok: 2021, popis: '13. ročník - 2021' },
-  { rok: 2020, popis: '12. ročník - 2020' },
-  { rok: 2019, popis: '11. ročník - 2019' },
-  { rok: 2018, popis: '10. ročník - 2018' },
-  { rok: 2017, popis: '9. ročník - 2017' },
-  { rok: 2016, popis: '8. ročník - 2016' },
-  { rok: 2015, popis: '7. ročník - 2015' },
-  { rok: 2014, popis: '6. ročník - 2014' },
-  { rok: 2013, popis: '5. ročník - 2013' },
-  { rok: 2012, popis: '4. ročník - 2012' },
-  { rok: 2011, popis: '3. ročník - 2011' },
-  { rok: 2010, popis: '2. ročník - 2010' },
-  { rok: 2009, popis: '1. ročník - 2009' },
-];
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar, RODNICI } from '../utils/constants';
 
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,37 +15,7 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const zapasyFinale = zapasy.filter(z => z.match_state?.skupina === 'FINALE');
   // Pro archivní roky: filtruj čtyřhu podle match_state.skupina
   const zapasyCtyrhra = zapasy.filter(z => z.match_state?.skupina === 'CTYRHRA');
-
-  // Extrakce unikátních hráčů z dat - rozděleno podle skupin
-  const hraciSkupinaA = useMemo(() => {
-    const hraci = new Set();
-    zapasySkupinaA.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasySkupinaA]);
-
-  const hraciSkupinaB = useMemo(() => {
-    const hraci = new Set();
-    zapasySkupinaB.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasySkupinaB]);
-
-  const hraciDvouhra = useMemo(() => [...hraciSkupinaA, ...hraciSkupinaB], [hraciSkupinaA, hraciSkupinaB]);
-
-  const hraciCtyrhra = useMemo(() => {
-    const hraci = new Set();
-    zapasyCtyrhra.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasyCtyrhra]);
-
+  
   // Dynamický seznam týmů (párů) pro křížovou tabulku archivní čtyřhry
   const tymyCtyrhra = useMemo(() => {
     const tymy = new Set();
@@ -161,10 +111,9 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
 };
 
 export const DashboardView = ({
-  zapasList, isDivak, otevritZapas, smazatZapas, 
+  zapasList, isDivak, otevritZapas, smazatZapas,
   otevritNovyZapasModal, typTabulky, setTypTabulky,
   tvMessage, tvMessageInput, setTvMessageInput, ulozitTvZpravu,
-  selectedYear,
   supabase,
   onDataChange
 }) => {

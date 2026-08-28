@@ -9,14 +9,17 @@ const { JSDOM } = require('jsdom');
 function nactiSupabaseKey() {
   try {
     const fs = require('fs');
-    const content = fs.readFileSync('src/supabase.js', 'utf8');
+    const path = require('path');
+    const root = process.env.REPO_ROOT || (process.cwd().endsWith('scripts') ? process.cwd().replace('/scripts', '') : process.cwd());
+    const content = fs.readFileSync(path.join(root, 'src/supabase.js'), 'utf8');
     const match = content.match(/supabaseKey\s*=\s*['"]([^'"]+)['"]/);
     return match ? match[1] : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
+// Supabase klíč a URL pro přímý import do databáze
 const SUPABASE_URL = 'https://ckkmvxfyiwrcqalygfvn.supabase.co';
 const SUPABASE_KEY = nactiSupabaseKey();
 
@@ -272,7 +275,7 @@ async function stahniArchiv(rok) {
       });
     });
     
-    for (const { nazev, html } of ctyrhraTableData) {
+    for (const { _nazev, html } of ctyrhraTableData) {
       const dom = new JSDOM(`<table>${html}</table>`);
       const tableEl = dom.window.document.querySelector('table');
       const { zapasy, hraciStat: stat } = parsujTabulku(tableEl);

@@ -10,7 +10,7 @@ export default defineConfig({
         target: 'https://orellichnov.cz',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => '/otcl/vysledky/',
+        rewrite: () => '/otcl/vysledky/',
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, _req, _res) => {
             proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
