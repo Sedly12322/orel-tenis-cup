@@ -20,6 +20,16 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     }
   }
 
+  // NOVÉ: Přeskočit aktuální pauvu (pro rozhodčího)
+  const skipPause = async () => {
+    let st = JSON.parse(JSON.stringify(score));
+    st.is_paused = false;
+    st.pause_end_time = null;
+    st.pause_type = null;
+    setScore(st);
+    await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId);
+  };
+
   const ukoncitZapas = async () => {
     let st = JSON.parse(JSON.stringify(score));
     if (!st.end_time) st.end_time = Date.now(); // Vypnutí stopek na konci
@@ -29,6 +39,17 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     await posunoutVitezeVCtyrhre(supabase);
           zpetDoMenu();
   }
+
+  // NOVÉ: Spustit pauzu (3 min mezi sety, 1 min mezi lichýma gemy)
+  const spustitPauvu = (st, pauseType) => {
+    const PAUSE_SET = 3 * 60 * 1000; // 3 min
+    const PAUSE_GEM = 1 * 60 * 1000; // 1 min
+    const pauseDuration = pauseType === 'set' ? PAUSE_SET : PAUSE_GEM;
+    st.is_paused = true;
+    st.pause_end_time = Date.now() + pauseDuration;
+    st.pause_type = pauseType;
+    st.pause_last_gem_count = (st.current_set?.player1_games || 0) + (st.current_set?.player2_games || 0);
+  };
 
   const kontumovatZapas = async (vitezId) => {
     const vitezJmeno = vitezId === 1 ? score.player1_name : score.player2_name;
@@ -175,8 +196,18 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
         } else if (g1 === 6 && g2 === 6) st.is_tiebreak = true;
       }
     }
+    // NOVÉ: Detekce pauzy mezi sety / lichýma gemy (jen live, ne-playoff, ne při tiebreaku jako ttalční set)
+    if (vyhralGem && !st.is_tiebreak && !isPlayoff) {
+      const prevCompletedCount = score.completed_sets?.length || 0;
+      if (st.completed_sets.length > prevCompletedCount) {
+        spustitPauvu(st, 'set');
+      } else {
+        const gemy = (st.current_set.player1_games || 0) + (st.current_set.player2_games || 0);
+        if (gemy % 2 === 1) spustitPauvu(st, 'odd_gem');
+      }
+    }
     setScore(st); await supabase.from('matches').update({ match_state: st }).eq('id', activeMatchId)
   }
 
-  return { spustitLive, znovuOtevritZapas, ukoncitZapas, kontumovatZapas, oboustrannaKontumace, krokZpet, zmenitJmenoHrace, rucniPrepnutiPodani, pridatBod, pridatChybuPodani };
+  return { spustitLive, znovuOtevritZapas, ukoncitZapas, kontumovatZapas, oboustrannaKontumace, krokZpet, zmenitJmenoHrace, rucniPrepnutiPodani, pridatBod, pridatChybuPodani, skipPause };
 }

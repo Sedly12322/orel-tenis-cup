@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generujHlaseni } from '../utils/gameLogic';
 
 const HawkEyeAnimation = ({ onClose }) => (
@@ -41,6 +41,7 @@ export const MatchView = ({
   pridatChybuPodani,
   zmenitJmenoHrace,
   znovuOtevritZapas,
+  skipPause,
   isDivak,
   isKiosk
 }) => {
@@ -109,6 +110,29 @@ export const MatchView = ({
   useEffect(() => {
     if (!dosahlKonce) setSkrytOverlay(false);
   }, [dosahlKonce]);
+
+  // NOVÉ: Automatické ukončení pauvy při dosažení pause_end_time
+  const [pauseRemaining, setPauseRemaining] = useState(0);
+  const pauseIntervalRef = useRef(null);
+  useEffect(() => {
+    if (score?.is_paused && score?.pause_end_time) {
+      const tick = () => {
+        const remaining = Math.max(0, score.pause_end_time - Date.now());
+        setPauseRemaining(remaining);
+        if (remaining <= 0) {
+          if (skipPause) skipPause();
+        }
+      };
+      tick();
+      if (pauseIntervalRef.current) clearInterval(pauseIntervalRef.current);
+      pauseIntervalRef.current = setInterval(tick, 1000);
+    } else {
+      if (pauseIntervalRef.current) clearInterval(pauseIntervalRef.current);
+    }
+    return () => {
+      if (pauseIntervalRef.current) clearInterval(pauseIntervalRef.current);
+    };
+  }, [score?.is_paused, score?.pause_end_time, skipPause]);
 
   let currentStartSide = 0; 
   if (score?.completed_sets) {
@@ -324,7 +348,24 @@ export const MatchView = ({
         }
       `}</style>
 
-      {showHawkEye && <HawkEyeAnimation onClose={() => setShowHawkEye(false)} />}
+      {showHawkEye && <HawkEyeAnimation onClose={() => setShowHawkEye(false)} />}\
+
+      {/* NOVÉ: Pauzovací overlay během live zápasu */}
+      {score?.is_paused && score?.pause_end_time && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
+          <h2 style={{ fontSize: isKiosk ? 'clamp(32px, 6vw, 60px)' : 'clamp(24px, 5vw, 40px)', color: '#ffeb3b', margin: '0 0 20px 0', fontWeight: 'normal' }}>
+            {score.pause_type === 'set' ? (<>🏁 KONEC SETU</>) : (<>⏸ Pauza mezi lichým gemem</>)}
+          </h2>
+          <div style={{ fontSize: isKiosk ? 'clamp(60px, 12vw, 120px)' : 'clamp(40px, 8vw, 80px)', fontWeight: '900', color: '#00ff88', fontFamily: 'monospace', background: '#222', padding: '10px 30px', borderRadius: '10px', minWidth: '180px', textAlign: 'center' }}>
+            {Math.ceil(pauseRemaining / 1000)}
+          </div>
+          {!isDivak && skipPause && (
+            <button onClick={skipPause} style={{ marginTop: '30px', padding: '12px 25px', fontSize: 'clamp(14px, 2.5vw, 20px)', background: '#28a745', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+              ▶ Skočit pauvu
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="print-only" style={{ fontFamily: 'Arial, sans-serif' }}>
         <h1 style={{ textAlign: 'center', borderBottom: '3px solid #000', paddingBottom: '15px', textTransform: 'uppercase' }}>🎾 Orel Tenis Cup Lichnov</h1>
