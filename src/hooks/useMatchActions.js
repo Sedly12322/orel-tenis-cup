@@ -132,7 +132,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
   }
 
   const pridatBod = async (hrac, isHawkEye = false) => {
-    const isPlayoff = zapasList.find(z => z.id === activeMatchId)?.round !== null;
+    const isPlayoff = zapasList.find(z => Number(z.id) === Number(activeMatchId))?.round !== null;
     let st = JSON.parse(JSON.stringify(score));
     st._history = [...(score._history || []), { ...score, _history: undefined }].slice(-50);
     if (isHawkEye) st.hawk_eye_timestamp = Date.now();
