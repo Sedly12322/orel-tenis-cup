@@ -85,7 +85,7 @@ export const MatchView = ({
 
   const tiskDoPDF = () => { window.print(); };
 
-  const aktualniZapas = zapasList.find(z => z.id === activeMatchId);
+  const aktualniZapas = zapasList.find(z => Number(z.id) === Number(activeMatchId));
   const isZapasLocked = aktualniZapas?.status === 'finished';
   const zamknoutJmena = (aktualniZapas?.round !== null && aktualniZapas?.status !== 'planned') || isZapasLocked;
   
