@@ -1,9 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import RocnikOTCLTabulka from './RocnikOTCLTabulka';
 import ArchivKrizovaTabulka from './ArchivKrizovaTabulka';
-import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar, RODNICI } from '../utils/constants';
+import { HRACI_SKUPINA_A, HRACI_SKUPINA_B, CTYRHRA_TYMY, jeCtyrhraPar, RODNICI, AKTUALNI_ROK } from '../utils/constants';
+
+// Pomocná funkce pro vyhledávání
+const normalizeForSearch = (s) => s.toLowerCase()
+  .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
+  .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
+  .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
+  .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
+  .replace(/[ľ]/g, 'l').replace(/[ą]/g, 'a').replace(/[ę]/g, 'e')
+  .replace(/[ů]/g, 'u').replace(/[yý]/g, 'y').replace(/[ł]/g, 'l')
+  .replace(/[^a-z0-9\s/]/g, '').replace(/\s+/g, ' ').trim();
 
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -117,29 +127,43 @@ export const DashboardView = ({
   supabase,
   onDataChange
 }) => {
-  const [zobrazeneRok, setZobrazeneRok] = useState(2026);
+  const [zobrazeneRok, setZobrazeneRok] = useState(AKTUALNI_ROK);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtruj zápasy podle vyhledávání
+  const filtrujZapasy = useCallback((zapasy) => {
+    if (!searchQuery.trim()) return zapasy;
+    const q = normalizeForSearch(searchQuery);
+    return zapasy.filter(z => {
+      const p1 = normalizeForSearch(z.player1_name || '');
+      const p2 = normalizeForSearch(z.player2_name || '');
+      return p1.includes(q) || p2.includes(q) || 
+             p1.split(' ').some(s => s.startsWith(q)) || 
+             p2.split(' ').some(s => s.startsWith(q));
+    });
+  }, [searchQuery]);
 
   const zapasyProRok = useMemo(() => {
-    const result = { 2026: [] };
+    const result = { [AKTUALNI_ROK]: [] };
     zapasList.forEach(z => {
-      const rok = z.match_state?.archive_year || 2026;
+      const rok = z.match_state?.archive_year || AKTUALNI_ROK;
       if (!result[rok]) result[rok] = [];
       result[rok].push(z);
     });
     return result;
   }, [zapasList]);
 
-  const zapasyAktualni = zapasyProRok[2026] || [];
+  const zapasyAktualni = zapasyProRok[AKTUALNI_ROK] || [];
 
   const smazatRok = async (rok) => {
-    const rokText = rok === 2026 ? 'aktuálního roku' : `roku ${rok}`;
+    const rokText = rok === AKTUALNI_ROK ? 'aktuálního roku' : `roku ${rok}`;
     if (!window.confirm(`🚨 Opravdu smazat VŠECHNY zápasy z ${rokText}? Nevratné!`)) return;
     
     try {
       const { data } = await supabase.from('matches').select('id, match_state');
       if (data) {
         const ids = data
-          .filter(z => rok === 2026 ? !z.match_state?.archive_year : z.match_state?.archive_year == rok)
+          .filter(z => rok === AKTUALNI_ROK ? !z.match_state?.archive_year : z.match_state?.archive_year == rok)
           .map(z => z.id);
         
         if (ids.length > 0) {
@@ -155,14 +179,14 @@ export const DashboardView = ({
     }
   };
 
-  if (zobrazeneRok !== 2026) {
+  if (zobrazeneRok !== AKTUALNI_ROK) {
     return (
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
         <div style={{ marginBottom: '30px', textAlign: 'center', background: isDivak ? '#222' : '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
           <label style={{ fontWeight: 'bold', marginRight: '10px', color: isDivak ? '#fff' : '#333' }}>📅 Ročník: </label>
           <select value={zobrazeneRok} onChange={(e) => setZobrazeneRok(Number(e.target.value))} 
             style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer' }}>
-            <option value={2026}>18. ročník - 2026 (aktuální) ({zapasyAktualni.length})</option>
+            <option value={AKTUALNI_ROK}>18. ročník - {AKTUALNI_ROK} (aktuální) ({zapasyAktualni.length})</option>
             {RODNICI.map(r => {
               const pocet = (zapasyProRok[r.rok] || []).length;
               return <option key={r.rok} value={r.rok}>{r.popis} ({pocet})</option>;
@@ -175,12 +199,12 @@ export const DashboardView = ({
   }
 
   // Aktuální rok dashboard
-  const liveZapasy = zapasyAktualni.filter(z => z.status === 'live');
+  const liveZapasy = filtrujZapasy(zapasyAktualni.filter(z => z.status === 'live'));
   const neZiveZapasy = zapasyAktualni.filter(z => z.status !== 'live' && z.status !== 'tv_message'); 
-  const zapasyA = neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name));
-  const zapasyB = neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name));
-  const zapasyCtyrhra = neZiveZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name));
-  const zapasyOstatni = neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z) && z.round === null);
+  const zapasyA = filtrujZapasy(neZiveZapasy.filter(z => HRACI_SKUPINA_A.includes(z.player1_name) && HRACI_SKUPINA_A.includes(z.player2_name)));
+  const zapasyB = filtrujZapasy(neZiveZapasy.filter(z => HRACI_SKUPINA_B.includes(z.player1_name) && HRACI_SKUPINA_B.includes(z.player2_name)));
+  const zapasyCtyrhra = filtrujZapasy(neZiveZapasy.filter(z => jeCtyrhraPar(z.player1_name) && jeCtyrhraPar(z.player2_name)));
+  const zapasyOstatni = filtrujZapasy(neZiveZapasy.filter(z => !zapasyA.includes(z) && !zapasyB.includes(z) && !zapasyCtyrhra.includes(z) && z.round === null));
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(20px, 4vw, 50px) clamp(10px, 2vw, 20px)' }}>
@@ -189,14 +213,14 @@ export const DashboardView = ({
         <label style={{ fontWeight: 'bold', marginRight: '10px', color: isDivak ? '#fff' : '#333' }}>📅 Ročník: </label>
         <select value={zobrazeneRok} onChange={(e) => setZobrazeneRok(Number(e.target.value))} 
           style={{ padding: '8px 15px', fontSize: '16px', borderRadius: '8px', border: '2px solid #ccc', cursor: 'pointer' }}>
-          <option value={2026}>18. ročník - 2026 (aktuální) ({zapasyAktualni.length})</option>
+          <option value={AKTUALNI_ROK}>18. ročník - {AKTUALNI_ROK} (aktuální) ({zapasyAktualni.length})</option>
           {RODNICI.map(r => {
             const pocet = (zapasyProRok[r.rok] || []).length;
             return <option key={r.rok} value={r.rok}>{r.popis} ({pocet})</option>;
           })}
         </select>
         {!isDivak && (
-          <button onClick={() => smazatRok(2026)} style={{ marginLeft: '15px', padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
+          <button onClick={() => smazatRok(AKTUALNI_ROK)} style={{ marginLeft: '15px', padding: '8px 15px', fontSize: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#dc3545', color: '#fff' }}>
             🗑️ Smazat aktuální
           </button>
         )}
@@ -208,6 +232,44 @@ export const DashboardView = ({
           <p style={{ margin: '10px 0 0 0', fontSize: 'clamp(16px, 2.5vw, 20px)', color: isDivak ? '#fff' : '#856404', fontWeight: 'bold' }}>{tvMessage}</p>
         </div>
       )}
+
+      {/* Vyhledávání */}
+      <div style={{ marginBottom: '30px', background: isDivak ? '#222' : '#fff', padding: '15px 20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '20px' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Hledat hráče..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '10px 15px',
+              fontSize: '16px',
+              borderRadius: '8px',
+              border: '2px solid #ccc',
+              background: isDivak ? '#333' : '#fff',
+              color: isDivak ? '#fff' : '#333'
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                padding: '10px 15px',
+                fontSize: '14px',
+                background: '#6c757d',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
 
       {!isDivak && (
         <div style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>

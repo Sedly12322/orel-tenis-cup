@@ -1,10 +1,6 @@
-import { normalize } from './constants';
+import { normalize, zkraceneJmeno } from './constants.js';
 
-export const zkraceneJmeno = (jmeno) => {
-  if (!jmeno) return "";
-  const casti = jmeno.split(' ');
-  return casti.length === 1 ? jmeno : casti[0].charAt(0) + '. ' + casti.slice(1).join(' ');
-}
+export { zkraceneJmeno };
 
 export const generujHlaseni = (_score, _minulyStav) => {
   if (!_score) return "Čeká se na zahájení zápasu...";

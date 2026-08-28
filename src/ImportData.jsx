@@ -1,28 +1,10 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase';
 import { importujDataZWebu, prevedNaZapasy } from './utils/webImport';
-import { jeCtyrhraPar, RODNICI } from './utils/constants';
+import { normalizujPar, getTextFromCell } from './utils/webImport';
+import { jeCtyrhraPar, RODNICI, AKTUALNI_ROK } from './utils/constants';
 
-// Pomocné funkce pro parsování HTML mimo komponentu
-function normalizujPar(raw) {
-  const jmena = String(raw)
-    .split(/\s*\n\s*|\s*\/\s*/)
-    .map(j => j.replace(/^[\s]+|[\s]+$/g, ''))
-    .filter(Boolean);
-  return jmena.join(' / ');
-}
-
-function getTextFromCell(cell) {
-  if (!cell) return '';
-  let html = String(cell.innerHTML || '');
-  // Odstranění <sup> tagů (obsahují čísla tiebrelu, která by měla být ignorována)
-  html = html.replace(/<SUP[^>]*>[^<]*<\/SUP>/gi, '');
-  html = html.replace(/&nbsp;/g, ' ').replace(/<BR\s*\/?>/gi, '\n');
-  html = html.replace(/<[^>]*>/g, '');
-  html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  return html.trim();
-}
-
+// Parsuje HTML archivní stránky (jiná struktura než live web)
 function parsujTabulkuHTML(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -256,7 +238,7 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <span style={{ fontSize: '48px' }}>🎾</span>
             <h2 style={{ margin: '10px 0', color: '#28a745' }}>Dvouhra</h2>
-            <p style={{ color: '#666' }}>Skupina A + Skupina B • Aktuální ročník 2026</p>
+            <p style={{ color: '#666' }}>Skupina A + Skupina B • Aktuální ročník {AKTUALNI_ROK}</p>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -275,7 +257,7 @@ export default function ImportData({ zpetDoMenu, onDataChange }) {
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <span style={{ fontSize: '48px' }}>👥</span>
             <h2 style={{ margin: '10px 0', color: '#17a2b8' }}>Čtyřhra</h2>
-            <p style={{ color: '#666' }}>Páry (Skupina A + Playoff) • Aktuální ročník 2026</p>
+            <p style={{ color: '#666' }}>Páry (Skupina A + Playoff) • Aktuální ročník {AKTUALNI_ROK}</p>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

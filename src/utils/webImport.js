@@ -19,7 +19,7 @@ async function stahniHtml(v1, year = null) {
   return response.text();
 }
 
-function normalizujPar(raw) {
+export function normalizujPar(raw) {
   const jmena = String(raw)
     .split(/\s*\n\s*|\s*\/\s*/)
     .map(j => j.replace(/^\s+|\s+$/g, '').trim())
@@ -27,9 +27,11 @@ function normalizujPar(raw) {
   return jmena.join(' / ');
 }
 
-function getTextFromCell(cell) {
+export function getTextFromCell(cell) {
   if (!cell) return '';
-  let html = cell.innerHTML;
+  let html = String(cell.innerHTML || '');
+  // Odstranění <sup> tagů (obsahují čísla tiebreaků, která by měla být ignorována)
+  html = html.replace(/<SUP[^>]*>[^<]*<\/SUP>/gi, '');
   html = html.replace(/&nbsp;/g, ' ').replace(/<BR\s*\/?>/gi, '\n');
   html = html.replace(/<[^>]*>/g, '');
   html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');

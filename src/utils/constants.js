@@ -1,3 +1,6 @@
+// Aktuální ročník turnaje (dynamicky)
+export const AKTUALNI_ROK = new Date().getFullYear();
+
 export const HRACI_SKUPINA_A = ["František Paľo", "Libor Stanislav", "Jan Matúš", "Vladimír Vašut", "Radek Petr", "Pavel Hazuka, ml.", "Dominik Sedlář", "Sidney Rek", "Vladislav Rek"];
 export const HRACI_SKUPINA_B = ["Petr Osterezy", "Zdeněk Liška", "Jaromír Darivčák", "Přemysl Kahánek", "Tomáš Sedlář", "Jan Hrančík", "Lukáš Rafael Osterezy", "Jaroslav Jurek"];
 
@@ -46,6 +49,16 @@ export const normalize = (s) => s.toLowerCase()
   .replace(/[ľ]/g, 'l').replace(/[ą]/g, 'a').replace(/[ę]/g, 'e')
   .replace(/[ů]/g, 'u').replace(/[yý]/g, 'y').replace(/[ł]/g, 'l')
   .replace(/[^a-z0-9\s/]/g, '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Zkrácené jméno - iniciály + příjmení.
+ * Např. "František Paľo" → "F. Paľo"
+ */
+export const zkraceneJmeno = (jmeno) => {
+  if (!jmeno) return "";
+  const casti = jmeno.split(' ');
+  return casti.length === 1 ? jmeno : casti[0].charAt(0) + '. ' + casti.slice(1).join(' ');
+}
 
 /**
  * Zjistí, jestli jméno odpovídá páru v CTYRHRA_TYMY.
