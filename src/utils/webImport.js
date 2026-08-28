@@ -48,10 +48,19 @@ function parsujTabuldoc(html) {
   tables.forEach(table => {
     const rows = table.querySelectorAll('tr');
     if (rows.length < 3) return;
-
+    
+    // Slová která nejsou typickými názvy hráčů/párů - použity jako označení skupiny
+    const SKUPINOVÁ_SLOVA = ['skupina', 'finále', 'čtyřhra', 'ctyrhra'];
+    const jeNazevSkupiny = (text) => {
+      const lower = text.toLowerCase();
+      return SKUPINOVÁ_SLOVA.some(s => lower.includes(s));
+    };
+    
     // Najdi řádek s hlavičkou (první řádek s jmény hráčů - obsahuje "/" nebo "\n" po getTextFromCell)
+    // Vyber jen buňky které NEobsahují název skupiny
     let headerRowIdx = -1;
     let hraci = [];
+    let nazevSkupiny = '';
     for (let i = 0; i < rows.length; i++) {
       const cells = rows[i].querySelectorAll('td');
       const foundHraci = [];
@@ -59,6 +68,12 @@ function parsujTabuldoc(html) {
         const text = getTextFromCell(cells[j]);
         // Jména párů obsahují "/" nebo "\n" (po převodu <BR> na \n) - ostatní (čísla, "Body"...) přeskočit
         if (text && (text.includes('/') || text.includes('\n'))) {
+          // Přeskočit buňky které obsahují název skupiny (např. "Čtyřhra\nSkupina A")
+          if (jeNazevSkupiny(text)) {
+            // Tohle je název skupiny, ne hráč
+            if (!nazevSkupiny) nazevSkupiny = text;
+            continue;
+          }
           foundHraci.push(normalizujPar(text));
         }
       }
@@ -68,21 +83,57 @@ function parsujTabuldoc(html) {
         break;
       }
     }
-
-    if (headerRowIdx === -1 || hraci.length === 0) return;
-
-    // Najdi název skupiny z řádků před hlavičkou
-    let nazevSkupiny = '';
-    for (let i = headerRowIdx - 1; i >= 0; i--) {
-      const cells = rows[i].querySelectorAll('td');
-      for (let j = 0; j < cells.length; j++) {
-        const text = getTextFromCell(cells[j]);
-        if (text && text.length > 0) {
-          nazevSkupiny = text;
+    
+    // Fallback: pokud nenalezen hrači s "/" nebo "\n" (např. dvouhra se zkrácenými jmény),
+    // zkus najít řádek kde většina buněk obsahuje text (nejsou číslice a nejsou "Body", "Skóre", "Pořadí")
+    if (headerRowIdx === -1) {
+      const RESETOVÁ_SLOVA = ['body', 'skóre', 'pořadí', 'poř.', 'xx'];
+      
+      for (let i = 0; i < rows.length; i++) {
+        const cells = rows[i].querySelectorAll('td');
+        let textCells = 0;
+        const potentialHraci = [];
+        
+        for (let j = 0; j < cells.length; j++) {
+          const text = getTextFromCell(cells[j]);
+          if (!text) continue;
+          // Přeskočit buňky s číslicemi a seznamovými slovy
+          if (text.match(/^\d+$/) || RESETOVÁ_SLOVA.some(s => text.toLowerCase() === s || text.toLowerCase().startsWith(s))) continue;
+          
+          // Přeskočit název skupiny
+          if (jeNazevSkupiny(text)) {
+            if (!nazevSkupiny) nazevSkupiny = text;
+            continue;
+          }
+          
+          textCells++;
+          potentialHraci.push(normalizujPar(text));
+        }
+        
+        // Pokud má řádek alespoň 3 textové buňky, pravděpodobně jsou to hráči
+        if (textCells >= 3 && potentialHraci.length >= 3) {
+          headerRowIdx = i;
+          hraci = potentialHraci;
           break;
         }
       }
-      if (nazevSkupiny) break;
+    }
+    
+    if (headerRowIdx === -1 || hraci.length === 0) return;
+    
+    // Pokud název skupiny stále nebyl nalezen, zkus hledat v předchozích řádcích
+    if (!nazevSkupiny) {
+      for (let i = headerRowIdx - 1; i >= 0; i--) {
+        const cells = rows[i].querySelectorAll('td');
+        for (let j = 0; j < cells.length; j++) {
+          const text = getTextFromCell(cells[j]);
+          if (text && text.length > 0) {
+            nazevSkupiny = text;
+            break;
+          }
+        }
+        if (nazevSkupiny) break;
+      }
     }
 
     const nazevLower = nazevSkupiny.toLowerCase();
@@ -185,6 +236,7 @@ export async function importujDataZWebu(v1 = null, year = null) {
 
 export function prevedNaZapasy(data, existingMatches = [], year = null) {
   const noveZapasy = [];
+  const hraciStat = data.hraciStat || {};
 
   const zpracuj = (zapasy, skupina) => {
     for (const z of zapasy) {
@@ -222,6 +274,9 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
           }
         }
 
+        const stat1 = hraciStat[z.player1] || {};
+        const stat2 = hraciStat[z.player2] || {};
+
         noveZapasy.push({
           player1_name: z.player1,
           player2_name: z.player2,
@@ -239,13 +294,17 @@ export function prevedNaZapasy(data, existingMatches = [], year = null) {
             archive_year: year,
             skupina,
             score_original: z.score,
+            web_body: stat1.body != null ? stat1.body : null,
+            web_poradi: stat1.poradi != null ? stat1.poradi : null,
+            web_body_p2: stat2.body != null ? stat2.body : null,
+            web_poradi_p2: stat2.poradi != null ? stat2.poradi : null,
           },
         });
       }
     }
   };
 
-  zpracuj(data.skuginaA || [], 'A');
+  zpracuj(data.skupinaA || [], 'A');
   zpracuj(data.skupinaB || [], 'B');
   zpracuj(data.finalek || [], 'FINALE');
   zpracuj(data.ctyrhra || [], 'CTYRHRA');

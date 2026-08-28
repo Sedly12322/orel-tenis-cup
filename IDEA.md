@@ -1,1 +1,1 @@
-tenisová aplikace pro rozhodčí a diváky
+tenisova aplikace pro rozhodci a pro divaky

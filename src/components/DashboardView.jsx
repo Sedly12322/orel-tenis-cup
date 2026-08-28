@@ -28,7 +28,54 @@ const RODNICI = [
 const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [zobrazeni, setZobrazeni] = useState('klasicka');
-  
+
+  // Pro archivní roky: rozděl na skupiny podle match_state.skupina
+  const zapasySkupinaA = zapasy.filter(z => z.match_state?.skupina === 'A');
+  const zapasySkupinaB = zapasy.filter(z => z.match_state?.skupina === 'B');
+  const zapasyFinale = zapasy.filter(z => z.match_state?.skupina === 'FINALE');
+  // Pro archivní roky: filtruj čtyřhu podle match_state.skupina
+  const zapasyCtyrhra = zapasy.filter(z => z.match_state?.skupina === 'CTYRHRA');
+
+  // Extrakce unikátních hráčů z dat - rozděleno podle skupin
+  const hraciSkupinaA = useMemo(() => {
+    const hraci = new Set();
+    zapasySkupinaA.forEach(z => {
+      hraci.add(z.player1_name);
+      hraci.add(z.player2_name);
+    });
+    return Array.from(hraci).sort();
+  }, [zapasySkupinaA]);
+
+  const hraciSkupinaB = useMemo(() => {
+    const hraci = new Set();
+    zapasySkupinaB.forEach(z => {
+      hraci.add(z.player1_name);
+      hraci.add(z.player2_name);
+    });
+    return Array.from(hraci).sort();
+  }, [zapasySkupinaB]);
+
+  const hraciDvouhra = useMemo(() => [...hraciSkupinaA, ...hraciSkupinaB], [hraciSkupinaA, hraciSkupinaB]);
+
+  const hraciCtyrhra = useMemo(() => {
+    const hraci = new Set();
+    zapasyCtyrhra.forEach(z => {
+      hraci.add(z.player1_name);
+      hraci.add(z.player2_name);
+    });
+    return Array.from(hraci).sort();
+  }, [zapasyCtyrhra]);
+
+  // Dynamický seznam týmů (párů) pro křížovou tabulku archivní čtyřhry
+  const tymyCtyrhra = useMemo(() => {
+    const tymy = new Set();
+    zapasyCtyrhra.forEach(z => {
+      tymy.add(z.player1_name);
+      tymy.add(z.player2_name);
+    });
+    return Array.from(tymy).sort();
+  }, [zapasyCtyrhra]);
+
   // Guard clause - žádná data
   if (!zapasy || !Array.isArray(zapasy) || zapasy.length === 0) {
     return (
@@ -62,42 +109,6 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
     }
     setIsDeleting(false);
   };
-
-  // Pro archivní roky: rozděl na skupiny podle match_state.skupina
-  const zapasySkupinaA = zapasy.filter(z => z.match_state?.skupina === 'A');
-  const zapasySkupinaB = zapasy.filter(z => z.match_state?.skupina === 'B');
-  const zapasyFinale = zapasy.filter(z => z.match_state?.skupina === 'FINALE');
-  const zapasyCtyrhra = zapasy.filter(z => jeCtyrhraPar(z.player1_name) || jeCtyrhraPar(z.player2_name));
-
-  // Extrakce unikátních hráčů z dat - rozděleno podle skupin
-  const hraciSkupinaA = useMemo(() => {
-    const hraci = new Set();
-    zapasySkupinaA.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasySkupinaA]);
-
-  const hraciSkupinaB = useMemo(() => {
-    const hraci = new Set();
-    zapasySkupinaB.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasySkupinaB]);
-
-  const hraciDvouhra = useMemo(() => [...hraciSkupinaA, ...hraciSkupinaB], [hraciSkupinaA, hraciSkupinaB]);
-
-  const hraciCtyrhra = useMemo(() => {
-    const hraci = new Set();
-    zapasyCtyrhra.forEach(z => {
-      hraci.add(z.player1_name);
-      hraci.add(z.player2_name);
-    });
-    return Array.from(hraci).sort();
-  }, [zapasyCtyrhra]);
 
   return (
     <div>
@@ -140,6 +151,9 @@ const RocnikDashboard = ({ zapasy, rok, isDivak, supabase, onDataChange }) => {
         <>
           <ArchivKrizovaTabulka matches={zapasySkupinaA} nazev="Skupina A" isDivak={isDivak} rok={rok} />
           <ArchivKrizovaTabulka matches={zapasySkupinaB} nazev="Skupina B" isDivak={isDivak} rok={rok} />
+          {zapasyCtyrhra.length > 0 && (
+            <CtyrhraKrizovaTabulka matches={zapasyCtyrhra} tymy={tymyCtyrhra} nazev="Čtyřhra" isDivak={isDivak} />
+          )}
         </>
       )}
     </div>

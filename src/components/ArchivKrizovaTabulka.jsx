@@ -62,14 +62,13 @@ function ArchivKrizovaTabulka({ matches, nazev, isDivak, rok }) {
     return { hraci: hraciList, hraciStat: statMap, matice: m };
   }, [matches]);
 
-  if (!hraci || hraci.length === 0) return null;
-
   // Zjistit zda máme data z webu
   const hasWebData = Object.keys(hraciStat).length > 0;
 
   // Seřadit hráče podle pořadí z webu (pokud existuje)
   const hraciSorted = useMemo(() => {
     if (!hasWebData) return hraci;
+    if (!hraci || hraci.length === 0) return [];
 
     return [...hraci].sort((a, b) => {
       const sa = hraciStat[a];
@@ -85,8 +84,11 @@ function ArchivKrizovaTabulka({ matches, nazev, isDivak, rok }) {
 
   // Mapa pro rychlý přístup z sorted pozice na index v matici
   const sortedToOrig = useMemo(() => {
-    return hraciSorted.map(h => hraciList.indexOf(h));
-  }, [hraciSorted, hraciList]);
+    if (!hraciSorted) return [];
+    return hraciSorted.map(h => hraci.indexOf(h));
+  }, [hraciSorted, hraci]);
+
+  if (!hraci || hraci.length === 0) return null;
 
   return (
     <div style={{ marginBottom: '30px', overflowX: 'auto' }}>

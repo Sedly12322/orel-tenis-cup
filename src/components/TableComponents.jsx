@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { vypocitejTabulku } from '../utils/gameLogic'
 
 const zkraceneJmeno = (jmeno) => {
@@ -70,10 +71,60 @@ import { jeCtyrhraPar } from '../utils/constants';
 export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
   const { staty } = vypocitejTabulku(matches, tymy);
 
-  // Vytvoř matici výsledků pro rychlé O(1) vyhledávání
+  // Normalizační funkce pro porovnávání názvů (ignoruje diakritiku, velikost písem)
+  const normalize = (s) => s.toLowerCase()
+    .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
+    .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
+    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
+    .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
+    .replace(/[ľ]/g, 'l').replace(/[ą]/g, 'a').replace(/[ę]/g, 'e')
+    .replace(/[ů]/g, 'u').replace(/[yý]/g, 'y').replace(/[ł]/g, 'l')
+    .replace(/[^a-z0-9\s\/]/g, '').replace(/\s+/g, ' ').trim();
+
+  // Rozděli název páru na dva názvy hráčů podle '/' nebo mezery
+  const rozdelPar = (nazev) => {
+    const norm = normalize(nazev);
+    // Nejprve zkus '/' jako oddělovač
+    const parts = norm.split('/').map(s => s.trim());
+    if (parts.length === 2) return parts;
+    // Jinak zkus rozdělit podle mezer (předpokládáme "Jmeno Prijmeni Jmeno2 Prijmeni2")
+    const words = norm.split(' ').filter(Boolean);
+    if (words.length >= 4) {
+      return [words.slice(0, Math.floor(words.length / 2)).join(' '), words.slice(Math.floor(words.length / 2)).join(' ')];
+    }
+    if (words.length >= 2) {
+      return [words[0], words.slice(1).join(' ')];
+    }
+    return [norm];
+  };
+
+  // Porovná dva názvy párů - podporuje různé formáty (dlouhá/kratší jména)
+  const namesMatch = (a, b) => {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const na = normalize(a);
+    const nb = normalize(b);
+    if (na === nb) return true;
+
+    const pa = rozdelPar(na);
+    const pb = rozdelPar(nb);
+    if (pa.length !== 2 || pb.length !== 2) return false;
+
+    // Pro každou stranu páru porovnej příjmení a iniciály
+    for (let i = 0; i < 2; i++) {
+      const wa = pa[i].split(' ').filter(Boolean);
+      const wb = pb[i].split(' ').filter(Boolean);
+      if (wa.length === 0 || wb.length === 0) return false;
+      if (wa[wa.length - 1] !== wb[wb.length - 1]) return false;
+      if (wa[0]?.[0] !== wb[0]?.[0]) return false;
+    }
+    return true;
+  };
+
+  // Vytvoř matici výsledků s normalizovanými klíči pro robustní vyhledávání
+  const matchList = matches.filter(m => m.status === 'finished' && m.match_state?.completed_sets);
   const matice = {};
-  matches.forEach(m => {
-    if (m.status !== 'finished' || !m.match_state?.completed_sets) return;
+  matchList.forEach(m => {
     const p1 = m.player1_name;
     const p2 = m.player2_name;
     if (!matice[p1]) matice[p1] = {};
@@ -82,61 +133,79 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
     matice[p2][p1] = m;
   });
 
-  const normalize = (s) => s.toLowerCase()
-    .replace(/[áàâäã]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
-    .replace(/[óòôöõ]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[řŕ]/g, 'r')
-    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[žź]/g, 'z')
-    .replace(/[ď]/g, 'd').replace(/[ť]/g, 't').replace(/[ň]/g, 'n')
-    .replace(/[^a-z0-9\s\/]/g, '').replace(/\s+/g, ' ').trim();
-
-  const namesMatch = (a, b) => {
-    if (a === b) return true;
-    const na = normalize(a);
-    const nb = normalize(b);
-    if (na === nb) return true;
-    // Match by last name + initial
-    const pa = na.split('/').map(s => s.trim());
-    const pb = nb.split('/').map(s => s.trim());
-    if (pa.length === 2 && pb.length === 2) {
-      for (let i = 0; i < 2; i++) {
-        const wa = pa[i].split(' ').filter(Boolean);
-        const wb = pb[i].split(' ').filter(Boolean);
-        if (wa.length === 0 || wb.length === 0) return false;
-        if (wa[wa.length-1] !== wb[wb.length-1]) return false;
-        if (wa[0]?.[0] !== wb[0]?.[0]) return false;
+  // Webová data (body/pořadí ze stránky) pro archivní čtyřhu
+  const webStat = useMemo(() => {
+    const map = {};
+    matchList.forEach(m => {
+      const ms = m.match_state || {};
+      if (ms.web_body != null && ms.web_poradi != null) {
+        map[m.player1_name] = { body: ms.web_body, poradi: ms.web_poradi };
       }
-      return true;
+      if (ms.web_body_p2 != null && ms.web_poradi_p2 != null) {
+        map[m.player2_name] = { body: ms.web_body_p2, poradi: ms.web_poradi_p2 };
+      }
+    });
+    return map;
+  }, [matchList]);
+
+  // Najdi zápas mezi dvěma týmy pomocí přesného nebo fuzzy hledání
+  const najdiZapas = (tym1, tym2) => {
+    // 1. Přesné hledání v matici
+    let match = matice[tym1]?.[tym2] || matice[tym2]?.[tym1];
+    if (match) return match;
+
+    // 2. Hledání pomocí namesMatch
+    match = matchList.find(m => {
+      return (namesMatch(m.player1_name, tym1) && namesMatch(m.player2_name, tym2)) ||
+             (namesMatch(m.player1_name, tym2) && namesMatch(m.player2_name, tym1));
+    });
+    if (match) return match;
+
+    // 3. Hledání pomocí normalizovaných klíčů
+    const n1 = normalize(tym1);
+    const n2 = normalize(tym2);
+    match = matchList.find(m => {
+      const mn1 = normalize(m.player1_name);
+      const mn2 = normalize(m.player2_name);
+      return (mn1 === n1 && mn2 === n2) || (mn1 === n2 && mn2 === n1);
+    });
+    return match || null;
+  };
+
+  // Najdi webová data (body/pořadí) pro tým pomocí přesného nebo fuzzy hledání
+  const najdiWebStat = (tym) => {
+    if (webStat[tym]) return webStat[tym];
+    // Fuzzy hledání pomocí namesMatch
+    for (const key of Object.keys(webStat)) {
+      if (namesMatch(key, tym)) return webStat[key];
     }
-    return false;
+    // Hledání pomocí normalizovaného klíče
+    const nt = normalize(tym);
+    for (const key of Object.keys(webStat)) {
+      if (normalize(key) === nt) return webStat[key];
+    }
+    return null;
   };
 
   const getScoreText = (radkovyTym, sloupcovyTym) => {
-    // Try matrix first (fast)
-    let match = matice[radkovyTym]?.[sloupcovyTym] || matice[sloupcovyTym]?.[radkovyTym];
-    if (match) {
-      let text = match.match_state.completed_sets.map(set => {
-        if (match.player1_name === radkovyTym || namesMatch(match.player1_name, radkovyTym)) return `${set.player1_games}-${set.player2_games}`;
-        return `${set.player2_games}-${set.player1_games}`;
-      }).join(', ');
-      if (match.match_state.is_default) text += " (K)";
-      return text;
-    }
-    // Fallback: fuzzy search
-    match = matches.find(m => {
-      if (m.status !== 'finished' || !m.match_state?.completed_sets) return false;
-      return (namesMatch(m.player1_name, radkovyTym) && namesMatch(m.player2_name, sloupcovyTym)) ||
-             (namesMatch(m.player1_name, sloupcovyTym) && namesMatch(m.player2_name, radkovyTym));
-    });
+    const match = najdiZapas(radkovyTym, sloupcovyTym);
     if (!match) return "";
-    let text = match.match_state.completed_sets.map(set => {
-      if (match.player1_name === radkovyTym || namesMatch(match.player1_name, radkovyTym)) return `${set.player1_games}-${set.player2_games}`;
+
+    const text = match.match_state.completed_sets.map(set => {
+      if (namesMatch(match.player1_name, radkovyTym)) return `${set.player1_games}-${set.player2_games}`;
       return `${set.player2_games}-${set.player1_games}`;
     }).join(', ');
-    if (match.match_state.is_default) text += " (K)";
-    return text;
+
+    let result = text;
+    if (match.match_state.is_default) result += " (K)";
+    return result;
   };
 
   const cellStyle = { border: '1px solid #ccc', padding: '5px', fontSize: '13px' };
+
+  // Nezobrazovat prázdnou tabulku, pokud nejsou žádné zápasy
+  const { serazeni: vysledky } = vypocitejTabulku(matches, tymy);
+  if (vysledky.length === 0) return null;
 
   return (
     <div style={{ overflowX: 'auto', background: isDivak ? '#222' : '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
@@ -156,7 +225,13 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
         </thead>
         <tbody>
           {tymy.map((tym, rIdx) => {
+            // Vypočti statistiky pomocí vypocitejTabulku
             const s = staty[tym] || { body: 0, gamesW: 0, gamesL: 0, poradi: rIdx + 1 };
+            // Doplníme webová data (body/pořadí) pokud jsou k dispozici (archivní data)
+            const ws = najdiWebStat(tym);
+            const body = (ws && ws.body != null) ? ws.body : s.body;
+            const poradi = (ws && ws.poradi != null) ? ws.poradi : s.poradi;
+            const sFinal = { ...s, body, poradi };
             return (
               <tr key={tym}>
                 <td style={{ ...cellStyle, background: isDivak ? '#333' : '#f8f9fa', color: isDivak ? '#aaa' : '#888', width: '30px' }}>{rIdx + 1}</td>
@@ -167,9 +242,9 @@ export const CtyrhraKrizovaTabulka = ({ matches, tymy, nazev, isDivak }) => {
                   if (rIdx === cIdx) return <td key={cIdx} style={{ ...cellStyle, background: isDivak ? '#444' : '#ddd' }}></td>;
                   return <td key={cIdx} style={{ ...cellStyle, whiteSpace: 'nowrap', color: isDivak ? '#ddd' : '#444' }}>{getScoreText(tym, colTym)}</td>;
                 })}
-                <td style={{ ...cellStyle, fontWeight: 'bold', color: '#007bff' }}>{s.body}</td>
-                <td style={cellStyle}>{s.gamesW}:{s.gamesL}</td>
-                <td style={{ ...cellStyle, fontWeight: 'bold', background: s.poradi === 1 ? '#ffd700' : s.poradi === 2 ? '#e3e4e5' : s.poradi === 3 ? '#cd7f32' : 'transparent' }}>{s.poradi}.</td>
+                <td style={{ ...cellStyle, fontWeight: 'bold', color: '#007bff' }}>{sFinal.body}</td>
+                <td style={cellStyle}>{sFinal.gamesW}:{sFinal.gamesL}</td>
+                <td style={{ ...cellStyle, fontWeight: 'bold', background: sFinal.poradi === 1 ? '#ffd700' : sFinal.poradi === 2 ? '#e3e4e5' : sFinal.poradi === 3 ? '#cd7f32' : 'transparent' }}>{sFinal.poradi}.</td>
               </tr>
             )
           })}

@@ -52,8 +52,9 @@ function parsujScore(scoreStr) {
 
 function getTextFromCell(cell) {
   if (!cell) return '';
-  if (typeof cell.textContent !== 'undefined') return cell.textContent.trim();
   let html = String(cell.innerHTML || '');
+  // Odstranění <sup> tagů (obsahují čísla tiebrelu, která by měla být ignorována)
+  html = html.replace(/<SUP[^>]*>[^<]*<\/SUP>/gi, '');
   html = html.replace(/&nbsp;/g, ' ').replace(/<BR\s*\/?>/gi, '\n');
   html = html.replace(/<[^>]*>/g, '');
   html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -127,13 +128,15 @@ function parsujTabulkuHTML(html) {
     
     // Přiřaď do skupiny podle hlavičky
     if (nazevSkupiny.includes('Finále')) {
-      vysledky.finalek = zapasy;
+      vysledky.finalek.push(...zapasy);
     } else if (nazevSkupiny.includes('Skupina A') || nazevSkupiny.includes('skupina A')) {
-      vysledky.skupinaA = zapasy;
+      vysledky.skupinaA.push(...zapasy);
     } else if (nazevSkupiny.includes('Skupina B') || nazevSkupiny.includes('skupina B')) {
-      vysledky.skupinaB = zapasy;
+      vysledky.skupinaB.push(...zapasy);
     } else if (nazevSkupiny.includes('Čtyřhra') || nazevSkupiny.toLowerCase().includes('čtyřhra')) {
-      vysledky.ctyrhra = zapasy;
+      vysledky.ctyrhra.push(...zapasy);
+    } else {
+      vysledky.skupinaA.push(...zapasy);
     }
   });
   
