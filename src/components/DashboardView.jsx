@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ZapasCard, ZapasRow, CollapsibleSection } from './SharedComponents';
 import { KrizovaTabulkaComponent, SkupinaTable, CtyrhraKrizovaTabulka, CtyrhraSkupinaTable } from './TableComponents';
 import RocnikOTCLTabulka from './RocnikOTCLTabulka';
