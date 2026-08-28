@@ -132,7 +132,8 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
   }
 
   const pridatBod = async (hrac, isHawkEye = false) => {
-    const isPlayoff = zapasList.find(z => Number(z.id) === Number(activeMatchId))?.round !== null;
+    const round = zapasList.find(z => Number(z.id) === Number(activeMatchId))?.round;
+    const isFinal = round === 1 || round === 101;
     let st = JSON.parse(JSON.stringify(score));
     st._history = [...(score._history || []), { ...score, _history: undefined }].slice(-50);
     if (isHawkEye) st.hawk_eye_timestamp = Date.now();
@@ -142,7 +143,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
 
     let p1 = st.current_game.player1_points; let p2 = st.current_game.player2_points;
     let vyhralGem = false; let matchTbPoints = null; let tbScore = null;
-    const isMatchTiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
+    const isMatchTiebreak = (!isFinal && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
 
     if (st.is_tiebreak) {
       let b1 = parseInt(p1) || 0; let b2 = parseInt(p2) || 0;
@@ -192,12 +193,12 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
           st.completed_sets.push({ player1_games: g1, player2_games: g2 });
           if (g1 > g2) st.sets_won.player1++; else st.sets_won.player2++;
           st.current_set = { player1_games: 0, player2_games: 0 }; 
-          st.is_tiebreak = (!isPlayoff && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
+          st.is_tiebreak = (!isFinal && st.sets_won.player1 === 1 && st.sets_won.player2 === 1);
         } else if (g1 === 6 && g2 === 6) st.is_tiebreak = true;
       }
     }
-    // NOVÉ: Detekce pauzy mezi sety / lichýma gemy (jen live, ne-playoff, ne při tiebreaku jako ttalční set)
-    if (vyhralGem && !st.is_tiebreak && !isPlayoff) {
+    // NOVÉ: Detekce pauzy mezi sety / lichýma gemy (jen live, ne-finále, ne při tiebreaku jako ttalční set)
+    if (vyhralGem && !st.is_tiebreak && !isFinal) {
       const prevCompletedCount = score.completed_sets?.length || 0;
       if (st.completed_sets.length > prevCompletedCount) {
         spustitPauvu(st, 'set');
