@@ -107,12 +107,15 @@ function MatchPage() {
 
       const matchKanal = supabase.channel(`match-kanal-${id}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${id}` },
-          (payload) => setScore(payload.new.match_state)
+          (payload) => {
+            setScore(payload.new.match_state)
+            ctx.setZapasList(prev => prev.map(z => Number(z.id) === Number(id) ? payload.new : z))
+          }
         ).subscribe()
 
       return () => { supabase.removeChannel(matchKanal) }
     }
-  }, [id])
+  }, [id, ctx.setZapasList])
 
   const matchActions = useMatchActions(score, setScore, id, ctx.zapasList, ctx.setZapasList, () => navigate('/'), supabase)
 

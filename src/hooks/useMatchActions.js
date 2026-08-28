@@ -7,7 +7,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
     if (!st.start_time) st.start_time = Date.now(); // Zapnutí stopek
     setScore(st);
     await supabase.from('matches').update({ status: 'live', match_state: st }).eq('id', activeMatchId);
-    setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live', match_state: st } : z));
+    setZapasList(prev => prev.map(z => z.id === Number(activeMatchId) ? { ...z, status: 'live', match_state: st } : z));
   }
 
   const znovuOtevritZapas = async () => {
@@ -16,7 +16,7 @@ export const useMatchActions = (score, setScore, activeMatchId, zapasList, setZa
       st.end_time = null; // Pokud ho znovu otevřeme, stopky zase běží
       setScore(st);
       await supabase.from('matches').update({ status: 'live', match_state: st }).eq('id', activeMatchId);
-      setZapasList(prev => prev.map(z => z.id === activeMatchId ? { ...z, status: 'live', match_state: st } : z));
+      setZapasList(prev => prev.map(z => z.id === Number(activeMatchId) ? { ...z, status: 'live', match_state: st } : z));
     }
   }
 
